@@ -259,29 +259,28 @@
                 <!-- (Las demás páginas de Salud, Incidentes y Capacitaciones se mantienen ocultas pero listas para desarrollar) -->
                 <div class="page" id="page-salud">
                     <div id="vista-b-trabajadores">
-                        <div class="flex-between mb-4" style="align-items: flex-end;">
-                            <div>
-                                <h2 style="font-size:24px;">🏥 Directorio de Miembros</h2>
-                                <span class="text-muted">Gestión de expedientes médicos y seguridad</span>
-                            </div>
-
-                            <div class="filters-container">
+                        <div class="mb-4">
+                            <div class="filters-container" style="width: 100%;">
+                                <div style="margin-right: auto; min-width: max-content;">
+                                    <h2 style="font-size:24px; margin:0;">🏥 Directorio de Miembros</h2>
+                                    <span class="text-muted">Gestión de expedientes médicos y seguridad</span>
+                                </div>
                                 <div class="search-wrapper">
                                     <span class="icon">🔍</span>
                                     <input type="text" id="searchTrabajador" class="form-control" placeholder="Buscar por nombre, DNI..." />
                                 </div>
-                                <select id="filterDepartamento" class="form-control">
+                                <select id="filterDepartamento" class="form-control" style="width: auto;">
                                     <option value="">Todas las Áreas</option>
                                     <!-- Options populated by JS -->
                                 </select>
-                                <select id="filterEstado" class="form-control">
+                                <select id="filterEstado" class="form-control" style="width: auto;">
                                     <option value="">Estado: Todos</option>
                                     <option value="success">🟢 Vigente</option>
                                     <option value="warning">🟡 Por Vencer</option>
                                     <option value="danger">🔴 Vencido</option>
                                     <option value="gray">⚪ Sin Registro</option>
                                 </select>
-                                <button class="btn btn-success" id="btnNuevoTrabajador" style="margin-left: auto;">➕ Registrar Miembro</button>
+                                <button class="btn btn-success" id="btnNuevoTrabajador">➕ Registrar Miembro</button>
                             </div>
                         </div>
 
