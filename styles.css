@@ -702,3 +702,26 @@
             .header-user .role { display: none; }
             .login-box { padding: 24px 16px; }
         }
+
+        /* --- Estilos para Impresión --- */
+        @media print {
+            body * {
+                visibility: hidden;
+            }
+            #perfil-print-area, #perfil-print-area * {
+                visibility: visible;
+            }
+            #perfil-print-area {
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 100%;
+            }
+            .no-print {
+                display: none !important;
+            }
+            .card {
+                box-shadow: none !important;
+                border: none !important;
+            }
+        }
