@@ -4,6 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>SISA - Sistema Integral de Seguridad y Ambiente</title>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
     <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
@@ -458,63 +459,145 @@
                     </div>
 
                     <div id="vista-c-perfil" style="display: none;">
-                        <div class="flex-between mb-4 no-print">
-                            <h2 style="font-size:24px;">📄 Dossier Médico</h2>
-                            <div>
-                                <button class="btn btn-outline" id="btnVolverVistaC">⬅️ Volver</button>
-                                <button class="btn btn-primary" id="btnEditarPerfil">✏️ Editar Perfil</button>
-                                <button class="btn btn-secondary" onclick="window.print()">🖨️ Exportar PDF</button>
-                            </div>
-                        </div>
-                        <div class="card" id="perfil-print-area">
-                            <div class="flex-between" style="border-bottom: 2px solid #eee; padding-bottom: 20px; margin-bottom: 20px;">
-                                <div style="display: flex; gap: 20px; align-items: center;">
-                                    <img id="p_foto" src="" alt="Foto" style="width: 100px; height: 100px; border-radius: 50%; object-fit: cover; background: #eee; display:none;" />
-                                    <div>
-                                        <h2 id="p_nombre_completo" style="margin-bottom: 5px;">-</h2>
-                                        <p class="text-muted" style="margin-bottom: 5px;" id="p_puesto_departamento">-</p>
-                                        <p><strong>DNI:</strong> <span id="p_dni">-</span> | <strong>Edad:</strong> <span id="p_edad">-</span></p>
+
+                        <!-- Header Section -->
+                        <div class="dossier-header-container" id="perfil-print-area-header">
+                            <div class="dossier-header-info">
+                                <div class="dossier-avatar-container">
+                                    <img id="p_foto" src="" alt="Foto de perfil" style="display:none;" />
+                                    <div id="p_foto_placeholder" class="dossier-avatar-placeholder">👤</div>
+                                </div>
+
+                                <div class="dossier-header-text">
+                                    <h1 id="p_nombre_completo">-</h1>
+                                    <p class="dossier-role" id="p_puesto_departamento">-</p>
+
+                                    <div class="dossier-header-meta">
+                                        <span class="dossier-meta-item">
+                                            <span class="material-symbols-outlined">badge</span>
+                                            DNI: <span id="p_dni">-</span>
+                                        </span>
+                                        <span class="dossier-meta-item">
+                                            <span class="material-symbols-outlined">cake</span>
+                                            Edad: <span id="p_edad">-</span>
+                                        </span>
                                     </div>
                                 </div>
-                                <div style="text-align: right;">
-                                    <h3 style="color: #e74c3c; font-size: 28px; margin-bottom: 5px;" id="p_tipo_sangre">-</h3>
-                                    <p class="text-muted">Tipo de Sangre</p>
-                                </div>
                             </div>
-                            <div class="grid-2 mb-4">
-                                <div class="card" style="box-shadow: none; border: 1px solid #ddd;">
-                                    <h4 class="mb-2">⚠️ Alergias y Condiciones</h4>
-                                    <p><strong>Alergias:</strong> <span id="p_alergias">-</span></p>
-                                    <p><strong>Condiciones:</strong> <span id="p_condiciones">-</span></p>
-                                </div>
-                                <div class="card" style="box-shadow: none; border: 1px solid #ddd;">
-                                    <h4 class="mb-2">📞 Contacto de Emergencia</h4>
-                                    <p><strong id="p_emergencia_nombre">-</strong> (<span id="p_emergencia_parentesco">-</span>)</p>
-                                    <p>Tel: <span id="p_emergencia_telefono">-</span></p>
-                                </div>
+
+                            <div class="dossier-header-actions no-print">
+                                <button class="btn btn-outline" id="btnVolverVistaC">
+                                    <span class="material-symbols-outlined">arrow_back</span> Volver
+                                </button>
+                                <button class="btn btn-primary" id="btnEditarPerfil">
+                                    <span class="material-symbols-outlined">edit</span> Editar Perfil
+                                </button>
+                                <button class="btn btn-outline" onclick="window.print()">
+                                    <span class="material-symbols-outlined">print</span> Exportar PDF
+                                </button>
                             </div>
-                            <div>
-                                <h3 class="mb-3">Tallas EPP</h3>
-                                <p><strong>Ropa:</strong> <span id="p_talla_ropa">-</span> | <strong>Calzado:</strong> <span id="p_talla_calzado">-</span></p>
+                        </div>
+
+                        <!-- Bento Grid Layout -->
+                        <div class="dossier-grid" id="perfil-print-area">
+
+                            <!-- Left Column (Main) -->
+                            <div class="dossier-column-main">
+
+                                <!-- Detalles Generales & EPP -->
+                                <section class="dossier-card">
+                                    <div class="dossier-card-header">
+                                        <span class="material-symbols-outlined">person</span>
+                                        <h3>Detalles y EPP</h3>
+                                    </div>
+                                    <div class="dossier-card-body dossier-grid-2-col">
+                                        <div class="dossier-field">
+                                            <p class="dossier-field-label">Talla de Ropa</p>
+                                            <p class="dossier-field-value" id="p_talla_ropa">-</p>
+                                        </div>
+                                        <div class="dossier-field">
+                                            <p class="dossier-field-label">Talla de Calzado</p>
+                                            <p class="dossier-field-value" id="p_talla_calzado">-</p>
+                                        </div>
+                                    </div>
+                                </section>
+
+                                <!-- Historial de Exámenes -->
+                                <section class="dossier-card">
+                                    <div class="dossier-card-header">
+                                        <span class="material-symbols-outlined">medical_information</span>
+                                        <h3>Historial de Exámenes Médicos</h3>
+                                    </div>
+                                    <div class="table-wrapper">
+                                        <table>
+                                            <thead>
+                                                <tr>
+                                                    <th>Tipo</th>
+                                                    <th>Fecha Realización</th>
+                                                    <th>Fecha Vencimiento</th>
+                                                    <th>Estado Actual</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="p_examenes_table">
+                                                <tr><td colspan="4" style="text-align:center;">Sin registro de exámenes</td></tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </section>
+
                             </div>
-                            <div class="mt-4">
-                                <h3 class="mb-3">Historial de Exámenes Médicos</h3>
-                                <div class="table-wrapper">
-                                    <table>
-                                        <thead>
-                                            <tr>
-                                                <th>Tipo</th>
-                                                <th>Fecha Realización</th>
-                                                <th>Fecha Vencimiento</th>
-                                                <th>Estado Actual</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody id="p_examenes_table">
-                                            <tr><td colspan="4" style="text-align:center;">Sin registro de exámenes</td></tr>
-                                        </tbody>
-                                    </table>
-                                </div>
+
+                            <!-- Right Column (Side) -->
+                            <div class="dossier-column-side">
+
+                                <!-- Información Médica & Emergencia -->
+                                <section class="dossier-card">
+                                    <div class="dossier-card-header danger">
+                                        <span class="material-symbols-outlined">medical_services</span>
+                                        <h3>Protocolo de Emergencia</h3>
+                                    </div>
+                                    <div class="dossier-card-body">
+
+                                        <div class="dossier-blood-type">
+                                            <span class="label">
+                                                <span class="material-symbols-outlined" style="font-size: 18px;">bloodtype</span> Tipo de Sangre
+                                            </span>
+                                            <span class="value" id="p_tipo_sangre">-</span>
+                                        </div>
+
+                                        <div class="dossier-field">
+                                            <p class="dossier-field-label">
+                                                <span class="material-symbols-outlined" style="font-size: 14px;">warning</span> Alergias
+                                            </p>
+                                            <p class="dossier-field-value" id="p_alergias">-</p>
+                                        </div>
+
+                                        <hr class="dossier-hr" />
+
+                                        <div class="dossier-field">
+                                            <p class="dossier-field-label">Condiciones Médicas</p>
+                                            <p class="dossier-field-value" id="p_condiciones">-</p>
+                                        </div>
+
+                                        <hr class="dossier-hr" />
+
+                                        <div class="dossier-field">
+                                            <p class="dossier-field-label">Contacto de Emergencia</p>
+                                            <p class="dossier-field-value">
+                                                <strong id="p_emergencia_nombre">-</strong>
+                                                <span class="text-muted" style="font-size: 14px;">(<span id="p_emergencia_parentesco">-</span>)</span>
+                                            </p>
+                                            <p class="dossier-field-value" style="color: #2563eb; display: flex; align-items: center; gap: 4px; margin-top: 4px; font-size: 14px;">
+                                                <span class="material-symbols-outlined" style="font-size: 16px;">call</span>
+                                                <span id="p_emergencia_telefono">-</span>
+                                            </p>
+                                        </div>
+
+                                    </div>
+                                </section>
+
                             </div>
+
                         </div>
                     </div>
                 </div>
