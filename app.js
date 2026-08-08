@@ -915,11 +915,14 @@
 
             // Popular datos de cabecera
             const imgEl = document.getElementById('p_foto');
+            const placeholderEl = document.getElementById('p_foto_placeholder');
             if(t.fotografia_url) {
                 imgEl.src = t.fotografia_url;
                 imgEl.style.display = 'block';
+                if(placeholderEl) placeholderEl.style.display = 'none';
             } else {
                 imgEl.style.display = 'none';
+                if(placeholderEl) placeholderEl.style.display = 'block';
             }
 
             document.getElementById('p_nombre_completo').textContent = `${t.nombres} ${t.apellidos}`;

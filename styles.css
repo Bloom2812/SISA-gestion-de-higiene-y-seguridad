@@ -824,6 +824,279 @@
             margin-top: 16px;
         }
 
+        /* ===== PERFIL / DOSSIER MÉDICO (BENTO GRID) ===== */
+        .dossier-header-container {
+            background: #ffffff;
+            border-radius: 12px;
+            border: 1px solid #e5e7eb;
+            padding: 24px;
+            margin-bottom: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+        }
+
+        @media (min-width: 768px) {
+            .dossier-header-container {
+                flex-direction: row;
+                align-items: center;
+                justify-content: space-between;
+            }
+        }
+
+        .dossier-header-info {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 24px;
+            text-align: center;
+            width: 100%;
+        }
+
+        @media (min-width: 768px) {
+            .dossier-header-info {
+                flex-direction: row;
+                align-items: flex-start;
+                text-align: left;
+                width: auto;
+            }
+        }
+
+        .dossier-avatar-container {
+            width: 128px;
+            height: 128px;
+            border-radius: 50%;
+            overflow: hidden;
+            border: 4px solid #e0e3e5;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            flex-shrink: 0;
+            background: #f3f4f6;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .dossier-avatar-container img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .dossier-avatar-placeholder {
+            font-size: 48px;
+            color: #9ca3af;
+        }
+
+        .dossier-header-text {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            height: 100%;
+        }
+
+        .dossier-header-text h1 {
+            font-size: 32px;
+            font-weight: 700;
+            color: #1f2937;
+            margin-bottom: 4px;
+            letter-spacing: -0.5px;
+        }
+
+        .dossier-header-text .dossier-role {
+            font-size: 20px;
+            font-weight: 600;
+            color: #4b5563;
+            margin-bottom: 16px;
+        }
+
+        .dossier-header-meta {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+
+        @media (min-width: 768px) {
+            .dossier-header-meta {
+                justify-content: flex-start;
+            }
+        }
+
+        .dossier-header-meta .dossier-meta-item {
+            font-size: 14px;
+            color: #6b7280;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .dossier-header-meta .dossier-meta-item .material-symbols-outlined {
+            font-size: 16px;
+        }
+
+        .dossier-header-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            justify-content: center;
+            width: 100%;
+        }
+
+        @media (min-width: 768px) {
+            .dossier-header-actions {
+                justify-content: flex-end;
+                width: auto;
+            }
+        }
+
+        .dossier-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 24px;
+        }
+
+        @media (min-width: 1024px) {
+            .dossier-grid {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+
+        .dossier-column-main {
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        @media (min-width: 1024px) {
+            .dossier-column-main {
+                grid-column: span 2 / span 2;
+            }
+        }
+
+        .dossier-column-side {
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        .dossier-card {
+            background: #ffffff;
+            border-radius: 12px;
+            border: 1px solid #e5e7eb;
+            overflow: hidden;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+        }
+
+        .dossier-card-header {
+            padding: 16px 24px;
+            border-bottom: 1px solid #e5e7eb;
+            background: #f9fafb;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .dossier-card-header h3 {
+            font-size: 18px;
+            font-weight: 600;
+            color: #1f2937;
+            margin: 0;
+        }
+
+        .dossier-card-header .material-symbols-outlined {
+            color: #2563eb;
+        }
+
+        .dossier-card-header.danger .material-symbols-outlined {
+            color: #ef4444;
+        }
+
+        .dossier-card-body {
+            padding: 24px;
+        }
+
+        .dossier-grid-2-col {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 24px;
+        }
+
+        @media (min-width: 640px) {
+            .dossier-grid-2-col {
+                grid-template-columns: 1fr 1fr;
+                row-gap: 24px;
+                column-gap: 32px;
+            }
+        }
+
+        .dossier-field {
+            margin-bottom: 0;
+        }
+
+        .dossier-field-label {
+            font-size: 12px;
+            color: #6b7280;
+            margin-bottom: 4px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .dossier-field-value {
+            font-size: 16px;
+            color: #1f2937;
+            font-weight: 500;
+        }
+
+        .dossier-blood-type {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px;
+            border-radius: 8px;
+            background: #f9fafb;
+            border: 1px solid #e0e3e5;
+            margin-bottom: 16px;
+        }
+
+        .dossier-blood-type .label {
+            font-size: 14px;
+            color: #4b5563;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .dossier-blood-type .value {
+            font-size: 24px;
+            font-weight: 700;
+            color: #ef4444;
+        }
+
+        .dossier-tag-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+
+        .dossier-tag {
+            padding: 4px 8px;
+            background: #f3f4f6;
+            color: #1f2937;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+
+        .dossier-hr {
+            border: 0;
+            border-top: 1px solid #e5e7eb;
+            margin: 16px 0;
+        }
+
         /* ===== MISC ===== */
         .flex-between { display: flex; justify-content: space-between; align-items: center; }
         .flex-center { display: flex; align-items: center; gap: 8px; }
@@ -900,20 +1173,38 @@
             body * {
                 visibility: hidden;
             }
-            #perfil-print-area, #perfil-print-area * {
+            #perfil-print-area, #perfil-print-area *,
+            #perfil-print-area-header, #perfil-print-area-header * {
                 visibility: visible;
+            }
+            #perfil-print-area-header {
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 100%;
+                margin-bottom: 24px;
             }
             #perfil-print-area {
                 position: absolute;
                 left: 0;
-                top: 0;
+                top: 180px; /* Adjust based on header height */
                 width: 100%;
             }
             .no-print {
                 display: none !important;
             }
-            .card {
+            .card, .dossier-card, .dossier-header-container {
                 box-shadow: none !important;
-                border: none !important;
+                border: 1px solid #e5e7eb !important;
+            }
+            .dossier-grid {
+                display: block; /* Print normally stacks better */
+            }
+            .dossier-column-main, .dossier-column-side {
+                width: 100%;
+                margin-bottom: 24px;
+            }
+            .dossier-blood-type {
+                border: 1px solid #e0e3e5 !important;
             }
         }
