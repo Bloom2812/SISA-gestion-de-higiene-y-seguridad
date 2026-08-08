@@ -557,6 +557,198 @@
             appearance: auto;
         }
 
+        /* ===== TARJETAS Y FILTROS DIRECTORIO ===== */
+        .filters-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .filters-container .search-wrapper {
+            position: relative;
+            min-width: 280px;
+        }
+
+        .filters-container .search-wrapper .icon {
+            position: absolute;
+            left: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #9ca3af;
+            font-size: 14px;
+            pointer-events: none;
+        }
+
+        .filters-container .search-wrapper .form-control {
+            padding-left: 36px;
+        }
+
+        .grid-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 24px;
+            width: 100%;
+        }
+
+        .worker-card {
+            background: #fff;
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+            transition: box-shadow 0.2s, transform 0.2s;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+
+        .worker-card:hover {
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+            transform: translateY(-2px);
+        }
+
+        .worker-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 16px;
+        }
+
+        .worker-card-header .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 10px;
+            border: 1px solid transparent;
+        }
+
+        .worker-card-header .badge::before {
+            content: '';
+            display: block;
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+        }
+
+        .worker-card-header .badge-success { background: rgba(16, 185, 129, 0.1); color: #047857; border-color: rgba(16, 185, 129, 0.2); }
+        .worker-card-header .badge-success::before { background: #10b981; }
+
+        .worker-card-header .badge-warning { background: rgba(252, 130, 12, 0.1); color: #92400e; border-color: rgba(252, 130, 12, 0.2); }
+        .worker-card-header .badge-warning::before { background: #fc820c; }
+
+        .worker-card-header .badge-danger { background: rgba(239, 68, 68, 0.1); color: #b91c1c; border-color: rgba(239, 68, 68, 0.2); }
+        .worker-card-header .badge-danger::before { background: #ef4444; }
+
+        .worker-card-header .badge-gray { background: #f3f4f6; color: #4b5563; border-color: #e5e7eb; }
+        .worker-card-header .badge-gray::before { background: #9ca3af; }
+
+        .worker-card-header .options-btn {
+            background: none;
+            border: none;
+            color: #9ca3af;
+            cursor: pointer;
+            padding: 4px;
+            border-radius: 4px;
+            transition: background 0.2s, color 0.2s;
+        }
+        .worker-card-header .options-btn:hover {
+            background: #f3f4f6;
+            color: #2563eb;
+        }
+
+        .worker-card-body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            margin-bottom: 20px;
+            flex: 1;
+        }
+
+        .worker-card-body img, .worker-card-body .avatar-placeholder {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            border: 2px solid #e5e7eb;
+            object-fit: cover;
+            margin-bottom: 12px;
+            background: #f9fafb;
+            padding: 2px;
+        }
+
+        .worker-card-body .avatar-placeholder {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 32px;
+            color: #9ca3af;
+        }
+
+        .worker-card-body h3 {
+            font-size: 16px;
+            font-weight: 600;
+            color: #1f2937;
+            margin-bottom: 4px;
+            transition: color 0.2s;
+        }
+        .worker-card:hover .worker-card-body h3 {
+            color: #2563eb;
+        }
+
+        .worker-card-body .role {
+            font-size: 14px;
+            color: #4b5563;
+            font-weight: 500;
+            margin-bottom: 4px;
+        }
+
+        .worker-card-body .dept {
+            font-size: 12px;
+            color: #9ca3af;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .worker-card-footer {
+            display: flex;
+            gap: 12px;
+            padding-top: 16px;
+            border-top: 1px solid #e5e7eb;
+            margin-top: auto;
+        }
+
+        .worker-card-footer button {
+            flex: 1;
+            padding: 8px;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-align: center;
+        }
+
+        .worker-card-footer .btn-profile {
+            background: transparent;
+            border: 1px solid #d1d5db;
+            color: #4b5563;
+        }
+        .worker-card-footer .btn-profile:hover {
+            border-color: #2563eb;
+            color: #2563eb;
+        }
+
+        .worker-card-footer .btn-history {
+            background: #eff6ff;
+            border: 1px solid transparent;
+            color: #1d4ed8;
+        }
+        .worker-card-footer .btn-history:hover {
+            background: #dbeafe;
+        }
+
         /* ===== ALERTAS ===== */
         .alert {
             padding: 12px 16px;
