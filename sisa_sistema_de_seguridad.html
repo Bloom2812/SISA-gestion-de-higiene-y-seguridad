@@ -1,0 +1,1322 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SISA - Sistema Integral de Seguridad y Ambiente</title>
+    <style>
+        /* ===== ESTILOS GLOBALES ===== */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f3f4f6;
+            min-height: 100vh;
+            color: #1f2937;
+        }
+
+        /* ===== PANTALLA DE LOGIN ===== */
+        .login-container {
+            position: fixed;
+            inset: 0;
+            z-index: 9999;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            transition: opacity 0.5s ease, visibility 0.5s ease;
+        }
+
+        .login-container.hidden {
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+        }
+
+        .login-box {
+            background: #ffffff;
+            border-radius: 20px;
+            padding: 48px 40px;
+            max-width: 420px;
+            width: 100%;
+            box-shadow: 0 25px 60px rgba(0, 0, 0, 0.5);
+            animation: slideUp 0.6s ease;
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px) scale(0.95);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+
+        .login-header {
+            text-align: center;
+            margin-bottom: 32px;
+        }
+
+        .login-header .logo {
+            font-size: 48px;
+            display: block;
+            margin-bottom: 8px;
+        }
+
+        .login-header h1 {
+            font-size: 28px;
+            font-weight: 700;
+            color: #0f172a;
+            letter-spacing: -0.5px;
+        }
+
+        .login-header h1 span {
+            color: #2563eb;
+        }
+
+        .login-header p {
+            color: #6b7280;
+            font-size: 14px;
+            margin-top: 4px;
+        }
+
+        .login-form .form-group {
+            margin-bottom: 20px;
+        }
+
+        .login-form label {
+            display: block;
+            font-size: 14px;
+            font-weight: 500;
+            color: #374151;
+            margin-bottom: 6px;
+        }
+
+        .login-form .input-wrapper {
+            position: relative;
+        }
+
+        .login-form .input-wrapper .icon {
+            position: absolute;
+            left: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 18px;
+            color: #9ca3af;
+        }
+
+        .login-form .form-control {
+            width: 100%;
+            padding: 12px 14px 12px 44px;
+            border: 2px solid #e5e7eb;
+            border-radius: 12px;
+            font-size: 15px;
+            transition: border-color 0.2s, box-shadow 0.2s;
+            background: #f9fafb;
+        }
+
+        .login-form .form-control:focus {
+            outline: none;
+            border-color: #2563eb;
+            box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.1);
+            background: #fff;
+        }
+
+        .login-form .form-control.error {
+            border-color: #ef4444;
+            box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.1);
+        }
+
+        .login-form .error-message {
+            color: #ef4444;
+            font-size: 13px;
+            margin-top: 6px;
+            display: none;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .login-form .error-message.show {
+            display: flex;
+        }
+
+        .login-form .btn-login {
+            width: 100%;
+            padding: 14px;
+            background: #2563eb;
+            color: #fff;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s, transform 0.1s;
+            margin-top: 8px;
+        }
+
+        .login-form .btn-login:hover {
+            background: #1d4ed8;
+        }
+
+        .login-form .btn-login:active {
+            transform: scale(0.98);
+        }
+
+        .login-form .btn-login:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .login-footer {
+            text-align: center;
+            margin-top: 24px;
+            font-size: 13px;
+            color: #9ca3af;
+        }
+
+        .login-footer strong {
+            color: #6b7280;
+        }
+
+        /* ===== SIDEBAR Y ESTRUCTURA ===== */
+        .app-container {
+            display: flex;
+            min-height: 100vh;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.5s ease;
+        }
+
+        .app-container.show {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .sidebar {
+            width: 260px;
+            background: #111827;
+            color: #e5e7eb;
+            display: flex;
+            flex-direction: column;
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 100vh;
+            z-index: 1000;
+            transition: transform 0.3s ease;
+        }
+
+        .sidebar-brand {
+            padding: 24px 20px;
+            border-bottom: 1px solid #1f2937;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .sidebar-brand .shield {
+            font-size: 28px;
+        }
+
+        .sidebar-brand h1 {
+            font-size: 22px;
+            font-weight: 700;
+            color: #60a5fa;
+        }
+
+        .sidebar-brand small {
+            display: block;
+            font-size: 11px;
+            color: #9ca3af;
+            font-weight: 400;
+        }
+
+        .sidebar-nav {
+            flex: 1;
+            padding: 16px 12px;
+            overflow-y: auto;
+        }
+
+        .sidebar-nav .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.2s;
+            color: #d1d5db;
+            text-decoration: none;
+            font-size: 15px;
+            margin-bottom: 2px;
+        }
+
+        .sidebar-nav .nav-item:hover {
+            background: #1f2937;
+            color: #fff;
+        }
+
+        .sidebar-nav .nav-item.active {
+            background: #2563eb;
+            color: #fff;
+            font-weight: 600;
+        }
+
+        .sidebar-nav .nav-item .icon {
+            font-size: 20px;
+            width: 28px;
+            text-align: center;
+        }
+
+        .sidebar-footer {
+            padding: 16px 20px;
+            border-top: 1px solid #1f2937;
+            font-size: 13px;
+            color: #6b7280;
+        }
+
+        .sidebar-footer .logout-btn {
+            background: none;
+            border: none;
+            color: #ef4444;
+            cursor: pointer;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 0;
+            width: 100%;
+            text-align: left;
+            font-weight: 500;
+            transition: color 0.2s;
+        }
+
+        .sidebar-footer .logout-btn:hover {
+            color: #dc2626;
+        }
+
+        /* ===== CONTENIDO PRINCIPAL ===== */
+        .main-content {
+            margin-left: 260px;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+
+        /* ===== HEADER ===== */
+        .header {
+            background: #fff;
+            padding: 16px 32px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #e5e7eb;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .header-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: #1f2937;
+        }
+
+        .header-title span {
+            color: #6b7280;
+            font-weight: 400;
+            font-size: 14px;
+        }
+
+        .header-user {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .header-user .avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: #2563eb;
+            color: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 16px;
+        }
+
+        .header-user .name {
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .header-user .role {
+            font-size: 12px;
+            color: #6b7280;
+        }
+
+        /* ===== CONTENEDOR DE PÁGINAS ===== */
+        .page-container {
+            padding: 24px 32px;
+            flex: 1;
+        }
+
+        .page {
+            display: none;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .page.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(8px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* ===== CARDS ===== */
+        .card {
+            background: #fff;
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+            padding: 20px 24px;
+            margin-bottom: 20px;
+        }
+
+        .card-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        .grid-3 {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+        }
+
+        .grid-4 {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+        }
+
+        /* ===== STAT CARDS ===== */
+        .stat-card {
+            background: #fff;
+            border-radius: 12px;
+            padding: 16px 20px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+            border-left: 4px solid #2563eb;
+        }
+
+        .stat-card .label {
+            font-size: 13px;
+            color: #6b7280;
+        }
+
+        .stat-card .value {
+            font-size: 28px;
+            font-weight: 700;
+            margin-top: 4px;
+        }
+
+        .stat-card .sub {
+            font-size: 12px;
+            color: #22c55e;
+            margin-top: 4px;
+        }
+
+        .stat-card.danger { border-left-color: #ef4444; }
+        .stat-card.warning { border-left-color: #f59e0b; }
+        .stat-card.success { border-left-color: #22c55e; }
+        .stat-card.info { border-left-color: #3b82f6; }
+        .stat-card.purple { border-left-color: #8b5cf6; }
+
+        /* ===== TABLAS ===== */
+        .table-wrapper {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+        }
+
+        table th {
+            background: #f9fafb;
+            text-align: left;
+            padding: 10px 14px;
+            font-weight: 600;
+            color: #4b5563;
+            border-bottom: 2px solid #e5e7eb;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        table td {
+            padding: 10px 14px;
+            border-bottom: 1px solid #f3f4f6;
+            vertical-align: middle;
+        }
+
+        table tr:hover td {
+            background: #f9fafb;
+        }
+
+        /* ===== BADGES ===== */
+        .badge {
+            display: inline-block;
+            padding: 3px 12px;
+            border-radius: 999px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        .badge-success { background: #d1fae5; color: #065f46; }
+        .badge-danger { background: #fee2e2; color: #991b1b; }
+        .badge-warning { background: #fef3c7; color: #92400e; }
+        .badge-info { background: #dbeafe; color: #1e40af; }
+        .badge-gray { background: #f3f4f6; color: #4b5563; }
+        .badge-purple { background: #ede9fe; color: #5b21b6; }
+
+        /* ===== BOTONES ===== */
+        .btn {
+            padding: 8px 18px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .btn-primary { background: #2563eb; color: #fff; }
+        .btn-primary:hover { background: #1d4ed8; }
+        .btn-success { background: #22c55e; color: #fff; }
+        .btn-success:hover { background: #16a34a; }
+        .btn-danger { background: #ef4444; color: #fff; }
+        .btn-danger:hover { background: #dc2626; }
+        .btn-outline { background: transparent; border: 1px solid #d1d5db; color: #4b5563; }
+        .btn-outline:hover { background: #f9fafb; }
+        .btn-sm { padding: 4px 12px; font-size: 12px; }
+
+        /* ===== FORMULARIOS ===== */
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 14px;
+            font-weight: 500;
+            color: #374151;
+            margin-bottom: 4px;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 10px 14px;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border 0.2s;
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: #2563eb;
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+        }
+
+        select.form-control {
+            appearance: auto;
+        }
+
+        /* ===== ALERTAS ===== */
+        .alert {
+            padding: 12px 16px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+
+        .alert-danger { background: #fee2e2; border: 1px solid #fecaca; color: #991b1b; }
+        .alert-warning { background: #fef3c7; border: 1px solid #fde68a; color: #92400e; }
+        .alert-success { background: #d1fae5; border: 1px solid #a7f3d0; color: #065f46; }
+        .alert-info { background: #dbeafe; border: 1px solid #bfdbfe; color: #1e40af; }
+
+        /* ===== MODAL ===== */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 2000;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .modal-overlay.show {
+            display: flex;
+        }
+
+        .modal {
+            background: #fff;
+            border-radius: 16px;
+            max-width: 600px;
+            width: 100%;
+            max-height: 90vh;
+            overflow-y: auto;
+            padding: 28px 32px;
+            animation: fadeIn 0.2s ease;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .modal-header h2 {
+            font-size: 22px;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 28px;
+            cursor: pointer;
+            color: #6b7280;
+            padding: 0 8px;
+        }
+
+        .modal-close:hover {
+            color: #1f2937;
+        }
+
+        .modal-footer {
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+            padding-top: 16px;
+            border-top: 1px solid #e5e7eb;
+            margin-top: 16px;
+        }
+
+        /* ===== MISC ===== */
+        .flex-between { display: flex; justify-content: space-between; align-items: center; }
+        .flex-center { display: flex; align-items: center; gap: 8px; }
+        .gap-2 { gap: 8px; }
+        .gap-4 { gap: 16px; }
+        .mt-2 { margin-top: 8px; }
+        .mt-4 { margin-top: 16px; }
+        .mb-4 { margin-bottom: 16px; }
+        .text-muted { color: #6b7280; font-size: 14px; }
+        .text-sm { font-size: 13px; }
+        .fw-600 { font-weight: 600; }
+
+        /* ===== RESPONSIVE ===== */
+        .menu-toggle {
+            display: none;
+            background: none;
+            border: none;
+            font-size: 28px;
+            cursor: pointer;
+            color: #1f2937;
+        }
+
+        @media (max-width: 1024px) {
+            .grid-2 { grid-template-columns: 1fr; }
+            .grid-3 { grid-template-columns: 1fr 1fr; }
+            .grid-4 { grid-template-columns: 1fr 1fr; }
+        }
+
+        @media (max-width: 768px) {
+            .sidebar {
+                transform: translateX(-100%);
+                width: 280px;
+            }
+
+            .sidebar.open {
+                transform: translateX(0);
+            }
+
+            .main-content {
+                margin-left: 0;
+            }
+
+            .menu-toggle {
+                display: block;
+            }
+
+            .header {
+                padding: 12px 16px;
+            }
+
+            .page-container {
+                padding: 16px;
+            }
+
+            .grid-3 { grid-template-columns: 1fr; }
+            .grid-4 { grid-template-columns: 1fr 1fr; }
+
+            .login-box {
+                padding: 32px 24px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .grid-4 { grid-template-columns: 1fr; }
+            .header-title { font-size: 16px; }
+            .header-title span { display: none; }
+            .header-user .name { display: none; }
+            .header-user .role { display: none; }
+            .login-box { padding: 24px 16px; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- ========================================================= -->
+    <!-- ====== PANTALLA DE LOGIN ====== -->
+    <!-- ========================================================= -->
+    <div class="login-container" id="loginContainer">
+        <div class="login-box">
+            <div class="login-header">
+                <span class="logo">🛡️</span>
+                <h1>SISA <span>Seguridad</span></h1>
+                <p>Sistema Integral de Seguridad y Ambiente</p>
+            </div>
+
+            <form class="login-form" id="loginForm">
+                <div class="form-group">
+                    <label for="username">👤 Usuario</label>
+                    <div class="input-wrapper">
+                        <span class="icon">👤</span>
+                        <input
+                            type="text"
+                            id="username"
+                            class="form-control"
+                            placeholder="Ingresa tu usuario"
+                            value="admin"
+                            required
+                            autofocus
+                        />
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="password">🔒 Contraseña</label>
+                    <div class="input-wrapper">
+                        <span class="icon">🔒</span>
+                        <input
+                            type="password"
+                            id="password"
+                            class="form-control"
+                            placeholder="Ingresa tu contraseña"
+                            value="admin123"
+                            required
+                        />
+                    </div>
+                    <div class="error-message" id="loginError">
+                        ⚠️ <span id="errorText">Usuario o contraseña incorrectos</span>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn-login" id="loginBtn">
+                    🚀 Iniciar Sesión
+                </button>
+
+                <div class="login-footer">
+                    <strong>Demo:</strong> usuario: <strong>admin</strong> · contraseña: <strong>admin123</strong>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ========================================================= -->
+    <!-- ====== APLICACIÓN PRINCIPAL ====== -->
+    <!-- ========================================================= -->
+    <div class="app-container" id="appContainer">
+
+        <!-- SIDEBAR -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-brand">
+                <span class="shield">🛡️</span>
+                <div>
+                    <h1>SISA</h1>
+                    <small>Comisión H&S</small>
+                </div>
+            </div>
+            <nav class="sidebar-nav">
+                <div class="nav-item active" data-page="dashboard">
+                    <span class="icon">📊</span> Dashboard
+                </div>
+                <div class="nav-item" data-page="actas">
+                    <span class="icon">📄</span> Actas
+                </div>
+                <div class="nav-item" data-page="riesgos">
+                    <span class="icon">⚠️</span> Riesgos (Firebase)
+                </div>
+                <div class="nav-item" data-page="salud">
+                    <span class="icon">🏥</span> Salud Ocupacional
+                </div>
+                <div class="nav-item" data-page="incidentes">
+                    <span class="icon">🚨</span> Incidentes
+                </div>
+                <div class="nav-item" data-page="capacitaciones">
+                    <span class="icon">🎓</span> Capacitaciones
+                </div>
+            </nav>
+            <div class="sidebar-footer">
+                <button class="logout-btn" id="logoutBtn">
+                    🚪 Cerrar Sesión
+                </button>
+                <div style="margin-top:8px;font-size:11px;color:#4b5563;">v2.0 • Conectado a Firebase ⚡</div>
+            </div>
+        </aside>
+
+        <!-- MAIN CONTENT -->
+        <div class="main-content">
+
+            <!-- HEADER -->
+            <header class="header">
+                <div class="flex-center">
+                    <button class="menu-toggle" id="menuToggle">☰</button>
+                    <span class="header-title">SISA <span>| Sistema Integral de Seguridad y Ambiente</span></span>
+                </div>
+                <div class="header-user">
+                    <div>
+                        <div class="name" id="userNameDisplay">Administrador</div>
+                        <div class="role">Presidente Comisión</div>
+                    </div>
+                    <div class="avatar">A</div>
+                </div>
+            </header>
+
+            <!-- CONTENIDO -->
+            <div class="page-container">
+
+                <!-- ========================================================= -->
+                <!-- ====== PAGE: DASHBOARD ====== -->
+                <!-- ========================================================= -->
+                <div class="page active" id="page-dashboard">
+
+                    <div class="flex-between mb-4">
+                        <h2 style="font-size:24px;">Panel de Control</h2>
+                        <button class="btn btn-primary" id="btnNuevaActaDash">📄 Nueva Acta</button>
+                    </div>
+
+                    <!-- Stats -->
+                    <div class="grid-4">
+                        <div class="stat-card">
+                            <div class="label">📋 Total Actas</div>
+                            <div class="value">24</div>
+                            <div class="sub">▲ 3 este mes</div>
+                        </div>
+                        <div class="stat-card danger">
+                            <div class="label">⚠️ Riesgos Críticos</div>
+                            <div class="value">3</div>
+                            <div class="sub" style="color:#ef4444;">Atención inmediata</div>
+                        </div>
+                        <div class="stat-card success">
+                            <div class="label">👥 Trabajadores</div>
+                            <div class="value">156</div>
+                            <div class="sub">▲ 2 nuevos</div>
+                        </div>
+                        <div class="stat-card purple">
+                            <div class="label">🛡️ Días sin accidentes</div>
+                            <div class="value">187</div>
+                            <div class="sub" style="color:#8b5cf6;">¡Excelente!</div>
+                        </div>
+                    </div>
+
+                    <!-- Alertas y gráfico simulado -->
+                    <div class="grid-2 mt-4">
+                        <div class="card">
+                            <div class="card-title">🚨 Alertas Activas</div>
+                            <div class="alert alert-danger">🔴 Ruido excesivo - Sala Calderas <span style="margin-left:auto;font-size:12px;">Hoy</span></div>
+                            <div class="alert alert-warning">🟡 Falta de extintores - Planta Baja <span style="margin-left:auto;font-size:12px;">Mañana</span></div>
+                            <div class="alert alert-warning">🟡 Capacitación en alturas vencida <span style="margin-left:auto;font-size:12px;">5 días</span></div>
+                        </div>
+
+                        <div class="card">
+                            <div class="card-title">📈 Evolución mensual</div>
+                            <div style="height:140px;display:flex;align-items:flex-end;justify-content:space-around;gap:8px;padding-top:12px;">
+                                <!-- Barras simuladas -->
+                                <div style="flex:1;text-align:center;"><div style="height:60px;background:#ef4444;border-radius:4px 4px 0 0;width:100%;"></div><div style="height:40px;background:#22c55e;border-radius:4px 4px 0 0;width:100%;margin-top:4px;"></div><div style="font-size:11px;color:#6b7280;margin-top:4px;">Ene</div></div>
+                                <div style="flex:1;text-align:center;"><div style="height:75px;background:#ef4444;border-radius:4px 4px 0 0;width:100%;"></div><div style="height:50px;background:#22c55e;border-radius:4px 4px 0 0;width:100%;margin-top:4px;"></div><div style="font-size:11px;color:#6b7280;margin-top:4px;">Feb</div></div>
+                                <div style="flex:1;text-align:center;"><div style="height:50px;background:#ef4444;border-radius:4px 4px 0 0;width:100%;"></div><div style="height:60px;background:#22c55e;border-radius:4px 4px 0 0;width:100%;margin-top:4px;"></div><div style="font-size:11px;color:#6b7280;margin-top:4px;">Mar</div></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ========================================================= -->
+                <!-- ====== PAGE: ACTAS (MOCKUP) ====== -->
+                <!-- ========================================================= -->
+                <div class="page" id="page-actas">
+                    <div class="flex-between mb-4">
+                        <div>
+                            <h2 style="font-size:24px;">📄 Gestión de Actas</h2>
+                            <span class="text-muted">Registro y seguimiento de reuniones</span>
+                        </div>
+                        <button class="btn btn-primary" id="btnNuevaActa">➕ Nueva Acta</button>
+                    </div>
+
+                    <div class="card">
+                        <div class="table-wrapper">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>N° Acta</th>
+                                        <th>Fecha</th>
+                                        <th>Tipo</th>
+                                        <th>Estado</th>
+                                        <th>Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td><strong>H&S-2026-001</strong></td>
+                                        <td>15/01/2026</td>
+                                        <td><span class="badge badge-info">Ordinaria</span></td>
+                                        <td><span class="badge badge-success">Cerrada</span></td>
+                                        <td><button class="btn btn-sm btn-outline">👁️</button></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ========================================================= -->
+                <!-- ====== PAGE: RIESGOS (CONECTADO A FIREBASE) ====== -->
+                <!-- ========================================================= -->
+                <div class="page" id="page-riesgos">
+                    <div class="flex-between mb-4">
+                        <div>
+                            <h2 style="font-size:24px;">⚠️ Matriz de Riesgos</h2>
+                            <span class="text-muted">Conectado en tiempo real con Firestore</span>
+                        </div>
+                        <button class="btn btn-success" id="btnNuevoRiesgo">➕ Nuevo Riesgo</button>
+                    </div>
+
+                    <div class="card">
+                        <div class="table-wrapper">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Puesto / Área</th>
+                                        <th>Peligro</th>
+                                        <th style="text-align:center;">Nivel (P x S)</th>
+                                        <th>Responsable</th>
+                                        <th>Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="riesgosTableBody">
+                                    <tr><td colspan="5" style="text-align:center;">Cargando datos desde Firebase...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- (Las demás páginas de Salud, Incidentes y Capacitaciones se mantienen ocultas pero listas para desarrollar) -->
+                <div class="page" id="page-salud"><h2 class="mb-4">🏥 Salud Ocupacional</h2><p>Módulo listo para ser desarrollado igual que Riesgos.</p></div>
+                <div class="page" id="page-incidentes"><h2 class="mb-4">🚨 Incidentes</h2><p>Módulo listo para ser desarrollado igual que Riesgos.</p></div>
+                <div class="page" id="page-capacitaciones"><h2 class="mb-4">🎓 Capacitaciones</h2><p>Módulo listo para ser desarrollado igual que Riesgos.</p></div>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================================= -->
+    <!-- ====== MODALES ====== -->
+    <!-- ========================================================= -->
+
+    <!-- MODAL: Nueva Acta (Simulado) -->
+    <div class="modal-overlay" id="modalActa">
+        <div class="modal">
+            <div class="modal-header">
+                <h2>📄 Nueva Acta</h2>
+                <button class="modal-close" id="btnCloseActa">×</button>
+            </div>
+            <form id="formActa">
+                <div class="form-group">
+                    <label>N° Acta *</label>
+                    <input class="form-control" type="text" placeholder="H&S-2026-005" required />
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline" id="btnCancelActa">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">✅ Crear Acta</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: Nuevo Riesgo (Firebase) -->
+    <div class="modal-overlay" id="modalRiesgo">
+        <div class="modal">
+            <div class="modal-header">
+                <h2>⚠️ Reportar Nuevo Riesgo</h2>
+                <button class="modal-close" id="btnCloseRiesgo">×</button>
+            </div>
+            <form id="formRiesgo">
+                <div class="form-group">
+                    <label>Puesto / Área *</label>
+                    <input class="form-control" type="text" id="r_area" placeholder="Ej: Sala de Calderas" required />
+                </div>
+                <div class="form-group">
+                    <label>Peligro *</label>
+                    <input class="form-control" type="text" id="r_peligro" placeholder="Ej: Ruido excesivo" required />
+                </div>
+                <div class="grid-2">
+                    <div class="form-group">
+                        <label>Probabilidad (1-10) *</label>
+                        <input class="form-control" type="number" id="r_probabilidad" min="1" max="10" placeholder="8" required />
+                    </div>
+                    <div class="form-group">
+                        <label>Severidad (1-10) *</label>
+                        <input class="form-control" type="number" id="r_severidad" min="1" max="10" placeholder="9" required />
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Responsable</label>
+                    <input class="form-control" type="text" id="r_responsable" placeholder="Nombre del responsable" required/>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline" id="btnCancelRiesgo">Cancelar</button>
+                    <button type="submit" class="btn btn-success" id="btnSubmitRiesgo">✅ Guardar en Firebase</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ========================================================= -->
+    <!-- ====== JAVASCRIPT CON FIREBASE ====== -->
+    <!-- ========================================================= -->
+    <script type="module">
+        // Importaciones de Firebase (Mandatorias para este entorno)
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, addDoc, onSnapshot, deleteDoc, doc, query } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // ==========================================================
+        // ⚠️ PEGA AQUÍ TU CONFIGURACIÓN DE FIREBASE ⚠️
+        // Reemplaza esto con los datos que copiaste de la consola
+        // ==========================================================
+        const firebaseConfig = {
+            apiKey: "AIzaSyDFOFzd_2kYIXK153eCnsGrxjGrNDG3vdI",
+            authDomain: "gestion-de-mantenimiento-dev.firebaseapp.com",
+            projectId: "gestion-de-mantenimiento-dev",
+            storageBucket: "gestion-de-mantenimiento-dev.firebasestorage.app",
+            messagingSenderId: "440255998178",
+            appId: "1:440255998178:web:72e172d08a8a015970d6bb"
+        };
+        
+        const appId = 'sisa-mi-empresa'; // Puedes cambiar esto por el nombre de tu empresa
+        
+        // Iniciar Firebase
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        // Variables de estado
+        let currentUser = null;
+        let unsubscribeRiesgos = null;
+
+        // ============================================================
+        // 1. SISTEMA DE ALERTAS (TOASTS)
+        // ============================================================
+        function showToast(message, type = 'success') {
+            document.querySelectorAll('.custom-toast').forEach(t => t.remove());
+            const toast = document.createElement('div');
+            toast.className = 'custom-toast';
+            const bgColor = type === 'success' ? '#22c55e' : type === 'error' ? '#ef4444' : '#3b82f6';
+            toast.style.cssText = `
+                position: fixed; bottom: 24px; right: 24px;
+                padding: 14px 24px; border-radius: 12px;
+                background: ${bgColor}; color: #fff; font-weight: 500;
+                box-shadow: 0 10px 25px rgba(0,0,0,0.15); z-index: 9999;
+                animation: fadeIn 0.3s ease; max-width: 400px; font-size: 15px;
+            `;
+            toast.textContent = message;
+            document.body.appendChild(toast);
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transition = 'opacity 0.3s';
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        // ============================================================
+        // 2. AUTENTICACIÓN (LOGIN/LOGOUT CON FIREBASE)
+        // ============================================================
+        const LOGIN_CREDENTIALS = { username: 'admin', password: 'admin123' };
+
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const usernameInput = document.getElementById('username');
+            const passwordInput = document.getElementById('password');
+            const btn = document.getElementById('loginBtn');
+            const errorElement = document.getElementById('loginError');
+
+            errorElement.classList.remove('show');
+            usernameInput.classList.remove('error');
+            passwordInput.classList.remove('error');
+
+            // 1. Validar UI (Credenciales Demo)
+            if (usernameInput.value !== LOGIN_CREDENTIALS.username || passwordInput.value !== LOGIN_CREDENTIALS.password) {
+                errorElement.classList.add('show');
+                usernameInput.classList.add('error');
+                passwordInput.classList.add('error');
+                return;
+            }
+
+            btn.disabled = true;
+            btn.textContent = '⏳ Conectando con Firebase...';
+
+            // 2. Autenticación Real con Firebase (Requisito de Plataforma)
+            try {
+                if (typeof __initial_auth_token !== 'undefined') {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    await signInAnonymously(auth);
+                }
+                // Si la autenticación es exitosa, onAuthStateChanged manejará la transición de pantalla
+            } catch (error) {
+                console.error("Error Auth Firebase:", error);
+                showToast("Error de conexión a la base de datos", "error");
+                btn.disabled = false;
+                btn.textContent = '🚀 Iniciar Sesión';
+            }
+        });
+
+        document.getElementById('logoutBtn').addEventListener('click', () => {
+            if (confirm('¿Estás seguro de que deseas cerrar sesión?')) {
+                signOut(auth); // Cierra sesión en Firebase
+            }
+        });
+
+        // Observador de estado de autenticación
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                currentUser = user;
+                // Transición al Dashboard
+                document.getElementById('loginContainer').classList.add('hidden');
+                document.getElementById('appContainer').classList.add('show');
+                showToast('✅ Conectado exitosamente');
+                document.getElementById('loginBtn').disabled = false;
+                document.getElementById('loginBtn').textContent = '🚀 Iniciar Sesión';
+                
+                // Iniciar la escucha de datos
+                iniciarSuscripcionRiesgos();
+            } else {
+                currentUser = null;
+                // Transición de vuelta al Login
+                document.getElementById('appContainer').classList.remove('show');
+                document.getElementById('loginContainer').classList.remove('hidden');
+                document.getElementById('password').value = '';
+                
+                // Detener escucha de datos para ahorrar recursos
+                if(unsubscribeRiesgos) unsubscribeRiesgos();
+            }
+        });
+
+        // ============================================================
+        // 3. CONEXIÓN A FIRESTORE (MÓDULO: RIESGOS)
+        // ============================================================
+        // Regla Obligatoria: Usar ruta /artifacts/{appId}/public/data/{collectionName}
+        const coleccionRiesgos = collection(db, 'artifacts', appId, 'public', 'data', 'riesgos');
+
+        // Escuchar datos en tiempo real
+        function iniciarSuscripcionRiesgos() {
+            if (!currentUser) return; // Regla obligatoria: Comprobar autenticación
+            
+            unsubscribeRiesgos = onSnapshot(coleccionRiesgos, (snapshot) => {
+                const tbody = document.getElementById('riesgosTableBody');
+                tbody.innerHTML = ''; // Limpiar tabla
+
+                if (snapshot.empty) {
+                    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">No hay riesgos registrados. ¡Buen trabajo!</td></tr>';
+                    return;
+                }
+
+                snapshot.forEach((docSnap) => {
+                    const data = docSnap.data();
+                    const id = docSnap.id;
+                    
+                    // Cálculo de Nivel de Riesgo (Probabilidad * Severidad)
+                    const nivel = data.probabilidad * data.severidad;
+                    let badgeClass = 'badge-success';
+                    let badgeText = 'BAJO';
+                    
+                    if(nivel > 50) { badgeClass = 'badge-danger'; badgeText = 'CRÍTICO'; }
+                    else if(nivel > 25) { badgeClass = 'badge-warning'; badgeText = 'MEDIO'; }
+
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td><strong>${data.area}</strong></td>
+                        <td>${data.peligro}</td>
+                        <td style="text-align:center;">
+                            <span class="badge ${badgeClass}">${badgeText} (${nivel})</span>
+                        </td>
+                        <td>${data.responsable}</td>
+                        <td>
+                            <button class="btn btn-sm btn-danger btn-eliminar" data-id="${id}">🗑️</button>
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+
+                // Asignar eventos de eliminar
+                document.querySelectorAll('.btn-eliminar').forEach(btn => {
+                    btn.addEventListener('click', async (e) => {
+                        const id = e.target.getAttribute('data-id');
+                        if(confirm('¿Eliminar este riesgo de la base de datos?')) {
+                            await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'riesgos', id));
+                            showToast('🗑️ Riesgo eliminado');
+                        }
+                    });
+                });
+
+            }, (error) => {
+                console.error("Error de Snapshot:", error);
+                showToast("Error al leer datos en tiempo real", "error");
+            });
+        }
+
+        // Guardar nuevo Riesgo en Firebase
+        document.getElementById('formRiesgo').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            if (!currentUser) return;
+
+            const btn = document.getElementById('btnSubmitRiesgo');
+            btn.disabled = true;
+            btn.textContent = '⏳ Guardando...';
+
+            const nuevoRiesgo = {
+                area: document.getElementById('r_area').value,
+                peligro: document.getElementById('r_peligro').value,
+                probabilidad: parseInt(document.getElementById('r_probabilidad').value),
+                severidad: parseInt(document.getElementById('r_severidad').value),
+                responsable: document.getElementById('r_responsable').value,
+                fechaCreacion: new Date().toISOString()
+            };
+
+            try {
+                await addDoc(coleccionRiesgos, nuevoRiesgo);
+                showToast('✅ Riesgo guardado en Firebase exitosamente');
+                hideModal('modalRiesgo');
+                e.target.reset();
+            } catch (error) {
+                console.error("Error al guardar:", error);
+                showToast('Error al guardar en base de datos', 'error');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '✅ Guardar en Firebase';
+            }
+        });
+
+        // ============================================================
+        // 4. INTERFAZ DE USUARIO (NAVEGACIÓN Y MODALES)
+        // ============================================================
+        // Navegación del Sidebar
+        const navItems = document.querySelectorAll('.nav-item');
+        const pages = document.querySelectorAll('.page');
+
+        navItems.forEach(item => {
+            item.addEventListener('click', function() {
+                navItems.forEach(n => n.classList.remove('active'));
+                this.classList.add('active');
+                
+                pages.forEach(p => p.classList.remove('active'));
+                const pageId = 'page-' + this.dataset.page;
+                document.getElementById(pageId).classList.add('active');
+                
+                document.getElementById('sidebar').classList.remove('open'); // Cierra en móvil
+            });
+        });
+
+        // Toggle Menú Móvil
+        document.getElementById('menuToggle').addEventListener('click', () => {
+            document.getElementById('sidebar').classList.toggle('open');
+        });
+
+        // Lógica de Modales Genérica
+        function showModal(id) {
+            document.getElementById(id).classList.add('show');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function hideModal(id) {
+            document.getElementById(id).classList.remove('show');
+            document.body.style.overflow = '';
+        }
+
+        // Asignar aperturas de modales
+        document.getElementById('btnNuevaActaDash').addEventListener('click', () => showModal('modalActa'));
+        document.getElementById('btnNuevaActa').addEventListener('click', () => showModal('modalActa'));
+        document.getElementById('btnNuevoRiesgo').addEventListener('click', () => showModal('modalRiesgo'));
+
+        // Asignar cierres de modales
+        document.getElementById('btnCloseActa').addEventListener('click', () => hideModal('modalActa'));
+        document.getElementById('btnCancelActa').addEventListener('click', () => hideModal('modalActa'));
+        document.getElementById('btnCloseRiesgo').addEventListener('click', () => hideModal('modalRiesgo'));
+        document.getElementById('btnCancelRiesgo').addEventListener('click', () => hideModal('modalRiesgo'));
+
+        // Cierre al dar clic fuera del modal
+        document.querySelectorAll('.modal-overlay').forEach(overlay => {
+            overlay.addEventListener('click', function(e) {
+                if (e.target === this) hideModal(this.id);
+            });
+        });
+
+        // Formulario Acta (Mockup para futuras implementaciones Firebase)
+        document.getElementById('formActa').addEventListener('submit', (e) => {
+            e.preventDefault();
+            showToast('✅ Acta simulada guardada');
+            hideModal('modalActa');
+            e.target.reset();
+        });
+
+    </script>
+</body>
+</html>
