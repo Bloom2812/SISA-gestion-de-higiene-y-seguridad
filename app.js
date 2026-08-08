@@ -2,7 +2,6 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, collection, addDoc, onSnapshot, deleteDoc, doc, updateDoc, setDoc, query, where, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-        import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-storage.js";
 
         // ==========================================================
         // ⚠️ PEGA AQUÍ TU CONFIGURACIÓN DE FIREBASE ⚠️
@@ -28,7 +27,6 @@
         const secondaryAuth = getAuth(secondaryApp);
 
         const db = getFirestore(app);
-        const storage = getStorage(app);
 
         // Variables de estado
         let currentUser = null;
@@ -754,6 +752,9 @@
 
         let cacheTrabajadores = {}; // Para acceso rápido al editar/ver perfil
 
+        // SVG Placeholder por defecto para perfiles sin foto (reemplaza a via.placeholder.com que fallaba)
+        const defaultProfileSVG = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%239ca3af"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z"/></svg>`;
+
         function iniciarSuscripcionTrabajadores() {
             if (!currentUser) return;
             unsubscribeTrabajadores = onSnapshot(coleccionTrabajadores, (snapshot) => {
@@ -771,7 +772,7 @@
                     const id = docSnap.id;
                     cacheTrabajadores[id] = { ...data, id };
 
-                    const foto = data.fotografia_url ? data.fotografia_url : 'https://via.placeholder.com/40';
+                    const foto = data.fotografia_url ? data.fotografia_url : defaultProfileSVG;
                     const semaforo = evaluarSemaforoMedico(data.examenes);
 
                     const tr = document.createElement('tr');
@@ -924,6 +925,45 @@
             mostrarPasoWizard(1);
         }
 
+        // --- PROCESAR IMAGEN A BASE64 ---
+        function resizeAndConvertToBase64(file, maxWidth = 300, maxHeight = 300) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.readAsDataURL(file);
+                reader.onload = (event) => {
+                    const img = new Image();
+                    img.src = event.target.result;
+                    img.onload = () => {
+                        let width = img.width;
+                        let height = img.height;
+
+                        if (width > height) {
+                            if (width > maxWidth) {
+                                height *= maxWidth / width;
+                                width = maxWidth;
+                            }
+                        } else {
+                            if (height > maxHeight) {
+                                width *= maxHeight / height;
+                                height = maxHeight;
+                            }
+                        }
+
+                        const canvas = document.createElement('canvas');
+                        canvas.width = width;
+                        canvas.height = height;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0, width, height);
+
+                        const dataUrl = canvas.toDataURL('image/jpeg', 0.7); // 70% quality jpeg
+                        resolve(dataUrl);
+                    };
+                    img.onerror = (error) => reject(error);
+                };
+                reader.onerror = (error) => reject(error);
+            });
+        }
+
         // --- GUARDAR TRABAJADOR ---
         document.getElementById('formTrabajador').addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -965,11 +1005,18 @@
                 const fotoInput = document.getElementById('t_foto');
                 if (fotoInput.files.length > 0) {
                     const file = fotoInput.files[0];
-                    document.getElementById('t_foto_info').textContent = "Subiendo imagen...";
-                    const fileRef = ref(storage, `trabajadores_fotos/${Date.now()}_${file.name}`);
-                    await uploadBytes(fileRef, file);
-                    fotoUrl = await getDownloadURL(fileRef);
-                    document.getElementById('t_foto_info').textContent = "Imagen subida ✅";
+                    document.getElementById('t_foto_info').textContent = "Procesando imagen...";
+                    try {
+                        fotoUrl = await resizeAndConvertToBase64(file);
+                        document.getElementById('t_foto_info').textContent = "Imagen procesada ✅";
+                    } catch (err) {
+                        console.error("Error al procesar la imagen:", err);
+                        showToast('Error al procesar la imagen.', 'error');
+                        document.getElementById('t_foto_info').textContent = "Error al procesar ❌";
+                        btn.disabled = false;
+                        btn.textContent = '✅ Guardar Trabajador';
+                        return;
+                    }
                 }
 
                 const trabajadorData = {
@@ -1085,10 +1132,6 @@
         });
 
         // Exportar a window para uso en el script HTML (si es necesario)
-        window.appStorage = storage;
-        window.ref = ref;
-        window.uploadBytes = uploadBytes;
-        window.getDownloadURL = getDownloadURL;
         window.query = query;
         window.where = where;
         window.getDocs = getDocs;
