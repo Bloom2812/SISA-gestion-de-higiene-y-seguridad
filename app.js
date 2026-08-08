@@ -755,58 +755,150 @@
         // SVG Placeholder por defecto para perfiles sin foto (reemplaza a via.placeholder.com que fallaba)
         const defaultProfileSVG = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%239ca3af"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z"/></svg>`;
 
+        // Variables para filtrado
+        let filtrosTrabajadores = { busqueda: '', departamento: '', estado: '' };
+
+        function renderizarTarjetasTrabajadores() {
+            const grid = document.getElementById('trabajadoresGrid');
+            grid.innerHTML = '';
+
+            const trabajadoresArray = Object.values(cacheTrabajadores);
+
+            if (trabajadoresArray.length === 0) {
+                grid.innerHTML = '<div style="grid-column: 1 / -1; text-align: center; padding: 40px; color: #6b7280;">No hay miembros registrados.</div>';
+                return;
+            }
+
+            // Aplicar filtros
+            const filtrados = trabajadoresArray.filter(t => {
+                const semaforo = evaluarSemaforoMedico(t.examenes);
+                const nombreCompleto = `${t.nombres} ${t.apellidos}`.toLowerCase();
+
+                const cumpleBusqueda = filtrosTrabajadores.busqueda === '' ||
+                                     nombreCompleto.includes(filtrosTrabajadores.busqueda) ||
+                                     (t.dni && t.dni.includes(filtrosTrabajadores.busqueda));
+
+                const cumpleDepto = filtrosTrabajadores.departamento === '' ||
+                                  t.departamento === filtrosTrabajadores.departamento;
+
+                const cumpleEstado = filtrosTrabajadores.estado === '' ||
+                                   semaforo.color === filtrosTrabajadores.estado;
+
+                return cumpleBusqueda && cumpleDepto && cumpleEstado;
+            });
+
+            if (filtrados.length === 0) {
+                grid.innerHTML = '<div style="grid-column: 1 / -1; text-align: center; padding: 40px; color: #6b7280;">No se encontraron resultados que coincidan con los filtros.</div>';
+                return;
+            }
+
+            filtrados.forEach((t) => {
+                const semaforo = evaluarSemaforoMedico(t.examenes);
+                const fotoHtml = t.fotografia_url ?
+                    `<img src="${t.fotografia_url}" alt="Foto de ${t.nombres}">` :
+                    `<div class="avatar-placeholder">👤</div>`;
+
+                const card = document.createElement('div');
+                card.className = 'worker-card';
+                card.innerHTML = `
+                    <div class="worker-card-header">
+                        <span class="badge badge-${semaforo.color}">${semaforo.texto}</span>
+                        <button class="options-btn btn-eliminar-trabajador" data-id="${t.id}" title="Eliminar Miembro">
+                            🗑️
+                        </button>
+                    </div>
+
+                    <div class="worker-card-body">
+                        ${fotoHtml}
+                        <h3>${t.nombres} ${t.apellidos}</h3>
+                        <div class="role">${t.puesto_trabajo}</div>
+                        <div class="dept">🏢 ${t.departamento}</div>
+                    </div>
+
+                    <div class="worker-card-footer">
+                        <button class="btn-profile btn-ver-perfil" data-id="${t.id}">Perfil</button>
+                        <button class="btn-history btn-ver-historial" data-id="${t.id}">Historial</button>
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+
+            // Asignar eventos
+            document.querySelectorAll('.btn-ver-perfil').forEach(btn => {
+                btn.addEventListener('click', (e) => abrirDossierMedico(e.currentTarget.dataset.id));
+            });
+
+            document.querySelectorAll('.btn-ver-historial').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    showToast('Funcionalidad de Historial/Incidentes próximamente', 'info');
+                });
+            });
+
+            document.querySelectorAll('.btn-eliminar-trabajador').forEach(btn => {
+                btn.addEventListener('click', async (e) => {
+                    const id = e.currentTarget.dataset.id;
+                    if(confirm('¿Eliminar definitivamente el expediente de este miembro?')) {
+                        await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'trabajadores', id));
+                        showToast('🗑️ Expediente eliminado');
+                    }
+                });
+            });
+        }
+
+        // Escuchar cambios en los filtros
+        document.getElementById('searchTrabajador').addEventListener('input', (e) => {
+            filtrosTrabajadores.busqueda = e.target.value.toLowerCase();
+            renderizarTarjetasTrabajadores();
+        });
+
+        document.getElementById('filterDepartamento').addEventListener('change', (e) => {
+            filtrosTrabajadores.departamento = e.target.value;
+            renderizarTarjetasTrabajadores();
+        });
+
+        document.getElementById('filterEstado').addEventListener('change', (e) => {
+            filtrosTrabajadores.estado = e.target.value;
+            renderizarTarjetasTrabajadores();
+        });
+
+        // Actualizar el select de filtros de departamento cuando se carga la página o cambian las áreas
+        async function actualizarSelectFiltroDepartamentos() {
+            const selectFiltro = document.getElementById('filterDepartamento');
+            const valorActual = selectFiltro.value;
+            selectFiltro.innerHTML = '<option value="">Todas las Áreas</option>';
+
+            try {
+                const snapshot = await getDocs(coleccionAreas);
+                snapshot.forEach(doc => {
+                    const data = doc.data();
+                    const option = document.createElement('option');
+                    option.value = data.nombre;
+                    option.textContent = data.nombre;
+                    selectFiltro.appendChild(option);
+                });
+                selectFiltro.value = valorActual; // Mantener selección si existe
+            } catch (error) {
+                console.error("Error al cargar áreas para el filtro:", error);
+            }
+        }
+
+
         function iniciarSuscripcionTrabajadores() {
             if (!currentUser) return;
-            unsubscribeTrabajadores = onSnapshot(coleccionTrabajadores, (snapshot) => {
-                const tbody = document.getElementById('trabajadoresTableBody');
-                tbody.innerHTML = '';
-                cacheTrabajadores = {};
 
-                if (snapshot.empty) {
-                    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;">No hay trabajadores registrados.</td></tr>';
-                    return;
-                }
+            actualizarSelectFiltroDepartamentos();
+
+            unsubscribeTrabajadores = onSnapshot(coleccionTrabajadores, (snapshot) => {
+                cacheTrabajadores = {};
 
                 snapshot.forEach((docSnap) => {
                     const data = docSnap.data();
                     const id = docSnap.id;
                     cacheTrabajadores[id] = { ...data, id };
-
-                    const foto = data.fotografia_url ? data.fotografia_url : defaultProfileSVG;
-                    const semaforo = evaluarSemaforoMedico(data.examenes);
-
-                    const tr = document.createElement('tr');
-                    tr.innerHTML = `
-                        <td><img src="${foto}" alt="Foto" style="width:40px;height:40px;border-radius:50%;object-fit:cover;"></td>
-                        <td><strong>${data.nombres} ${data.apellidos}</strong></td>
-                        <td>${data.departamento}</td>
-                        <td>${data.puesto_trabajo}</td>
-                        <td><span class="badge badge-${semaforo.color}">${semaforo.texto}</span></td>
-                        <td>
-                            <button class="btn btn-sm btn-outline btn-ver-perfil" data-id="${id}">👁️ Dossier</button>
-                            <button class="btn btn-sm btn-danger btn-eliminar-trabajador" data-id="${id}">🗑️</button>
-                        </td>
-                    `;
-                    tbody.appendChild(tr);
                 });
 
-                // Asignar eventos de Ver Perfil
-                document.querySelectorAll('.btn-ver-perfil').forEach(btn => {
-                    btn.addEventListener('click', (e) => {
-                        abrirDossierMedico(e.currentTarget.dataset.id);
-                    });
-                });
+                renderizarTarjetasTrabajadores();
 
-                // Asignar eventos de Eliminar
-                document.querySelectorAll('.btn-eliminar-trabajador').forEach(btn => {
-                    btn.addEventListener('click', async (e) => {
-                        const id = e.currentTarget.dataset.id;
-                        if(confirm('¿Eliminar definitivamente el expediente de este trabajador?')) {
-                            await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'trabajadores', id));
-                            showToast('🗑️ Expediente eliminado');
-                        }
-                    });
-                });
             }, (error) => {
                 console.error("Error al cargar trabajadores:", error);
             });

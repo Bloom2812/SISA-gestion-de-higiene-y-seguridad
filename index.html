@@ -259,30 +259,35 @@
                 <!-- (Las demás páginas de Salud, Incidentes y Capacitaciones se mantienen ocultas pero listas para desarrollar) -->
                 <div class="page" id="page-salud">
                     <div id="vista-b-trabajadores">
-                        <div class="flex-between mb-4">
+                        <div class="flex-between mb-4" style="align-items: flex-end;">
                             <div>
-                                <h2 style="font-size:24px;">🏥 Expedientes de Personal y Vigilancia Médica</h2>
+                                <h2 style="font-size:24px;">🏥 Directorio de Miembros</h2>
                                 <span class="text-muted">Gestión de expedientes médicos y seguridad</span>
                             </div>
-                            <button class="btn btn-success" id="btnNuevoTrabajador">➕ Nuevo Trabajador</button>
+
+                            <div class="filters-container">
+                                <div class="search-wrapper">
+                                    <span class="icon">🔍</span>
+                                    <input type="text" id="searchTrabajador" class="form-control" placeholder="Buscar por nombre, DNI..." />
+                                </div>
+                                <select id="filterDepartamento" class="form-control">
+                                    <option value="">Todas las Áreas</option>
+                                    <!-- Options populated by JS -->
+                                </select>
+                                <select id="filterEstado" class="form-control">
+                                    <option value="">Estado: Todos</option>
+                                    <option value="success">🟢 Vigente</option>
+                                    <option value="warning">🟡 Por Vencer</option>
+                                    <option value="danger">🔴 Vencido</option>
+                                    <option value="gray">⚪ Sin Registro</option>
+                                </select>
+                                <button class="btn btn-success" id="btnNuevoTrabajador" style="margin-left: auto;">➕ Registrar Miembro</button>
+                            </div>
                         </div>
-                        <div class="card">
-                            <div class="table-wrapper">
-                                <table>
-                                    <thead>
-                                        <tr>
-                                            <th>Foto</th>
-                                            <th>Nombre Completo</th>
-                                            <th>Área</th>
-                                            <th>Puesto</th>
-                                            <th>Estado Médico</th>
-                                            <th>Acciones</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody id="trabajadoresTableBody">
-                                        <tr><td colspan="6" style="text-align:center;">Cargando datos desde Firebase...</td></tr>
-                                    </tbody>
-                                </table>
+
+                        <div class="grid-cards" id="trabajadoresGrid">
+                            <div style="grid-column: 1 / -1; text-align: center; padding: 40px; color: #6b7280;">
+                                Cargando datos desde Firebase...
                             </div>
                         </div>
                     </div>
