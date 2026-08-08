@@ -21,15 +21,15 @@
 
             <form class="login-form" id="loginForm">
                 <div class="form-group">
-                    <label for="username">👤 Usuario</label>
+                    <label for="email">📧 Correo Electrónico</label>
                     <div class="input-wrapper">
-                        <span class="icon">👤</span>
+                        <span class="icon">📧</span>
                         <input
-                            type="text"
-                            id="username"
+                            type="email"
+                            id="email"
                             class="form-control"
-                            placeholder="Ingresa tu usuario"
-                            value="admin"
+                            placeholder="Ingresa tu correo electrónico"
+                            value="admin@sisa.com"
                             required
                             autofocus
                         />
@@ -59,7 +59,7 @@
                 </button>
 
                 <div class="login-footer">
-                    <strong>Demo:</strong> usuario: <strong>admin</strong> · contraseña: <strong>admin123</strong>
+                    <strong>Demo:</strong> correo: <strong>admin@sisa.com</strong> · contraseña: <strong>admin123</strong>
                 </div>
             </form>
         </div>
@@ -97,6 +97,9 @@
                 </div>
                 <div class="nav-item" data-page="capacitaciones">
                     <span class="icon">🎓</span> Capacitaciones
+                </div>
+                <div class="nav-item" data-page="configuracion">
+                    <span class="icon">⚙️</span> Configuración
                 </div>
             </nav>
             <div class="sidebar-footer">
@@ -258,6 +261,37 @@
                 <div class="page" id="page-incidentes"><h2 class="mb-4">🚨 Incidentes</h2><p>Módulo listo para ser desarrollado igual que Riesgos.</p></div>
                 <div class="page" id="page-capacitaciones"><h2 class="mb-4">🎓 Capacitaciones</h2><p>Módulo listo para ser desarrollado igual que Riesgos.</p></div>
 
+                <!-- ========================================================= -->
+                <!-- ====== PAGE: CONFIGURACIÓN (USUARIOS) ====== -->
+                <!-- ========================================================= -->
+                <div class="page" id="page-configuracion">
+                    <div class="flex-between mb-4">
+                        <div>
+                            <h2 style="font-size:24px;">⚙️ Configuración y Usuarios</h2>
+                            <span class="text-muted">Gestión de accesos y roles del sistema</span>
+                        </div>
+                        <button class="btn btn-primary" id="btnNuevoUsuario">➕ Nuevo Usuario</button>
+                    </div>
+
+                    <div class="card">
+                        <div class="table-wrapper">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Nombre</th>
+                                        <th>Correo</th>
+                                        <th>Rol</th>
+                                        <th>Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="usuariosTableBody">
+                                    <tr><td colspan="4" style="text-align:center;">Cargando usuarios...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
             </div>
         </div>
     </div>
@@ -281,6 +315,47 @@
                 <div class="modal-footer">
                     <button type="button" class="btn btn-outline" id="btnCancelActa">Cancelar</button>
                     <button type="submit" class="btn btn-primary">✅ Crear Acta</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: Nuevo Usuario -->
+    <div class="modal-overlay" id="modalUsuario">
+        <div class="modal">
+            <div class="modal-header">
+                <h2 id="modalUsuarioTitle">👤 Nuevo Usuario</h2>
+                <button class="modal-close" id="btnCloseUsuario">×</button>
+            </div>
+            <form id="formUsuario">
+                <input type="hidden" id="u_id" />
+                <div class="form-group">
+                    <label>Nombre Completo *</label>
+                    <input class="form-control" type="text" id="u_nombre" placeholder="Ej: Juan Pérez" required />
+                </div>
+                <div class="form-group">
+                    <label>Correo Electrónico *</label>
+                    <input class="form-control" type="email" id="u_correo" placeholder="ejemplo@empresa.com" required />
+                </div>
+                <div class="form-group" id="u_password_group">
+                    <label>Contraseña *</label>
+                    <input class="form-control" type="password" id="u_password" placeholder="Mínimo 6 caracteres" required minlength="6" />
+                    <small class="text-muted">Necesaria solo al crear un nuevo usuario.</small>
+                </div>
+                <div class="form-group">
+                    <label>Rol en el Sistema *</label>
+                    <select class="form-control" id="u_rol" required>
+                        <option value="">Selecciona un rol...</option>
+                        <option value="Administrador">Administrador</option>
+                        <option value="Gerencia">Gerencia (Solo vista)</option>
+                        <option value="Responsable H&S">Responsable de H&S</option>
+                        <option value="Supervisor">Supervisor / Encargado</option>
+                        <option value="Trabajador">Trabajador</option>
+                    </select>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline" id="btnCancelUsuario">Cancelar</button>
+                    <button type="submit" class="btn btn-primary" id="btnSubmitUsuario">✅ Guardar Usuario</button>
                 </div>
             </form>
         </div>
