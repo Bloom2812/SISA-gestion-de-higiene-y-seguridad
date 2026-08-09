@@ -57,10 +57,11 @@
             margin-bottom: 32px;
         }
 
-        .login-header .logo {
-            font-size: 48px;
+        .login-header .logo-img {
+            max-width: 100px;
+            height: auto;
             display: block;
-            margin-bottom: 8px;
+            margin: 0 auto 16px auto;
         }
 
         .login-header h1 {
@@ -214,8 +215,12 @@
             gap: 12px;
         }
 
-        .sidebar-brand .shield {
-            font-size: 28px;
+        .sidebar-brand .sidebar-logo-img {
+            width: 40px;
+            height: auto;
+            border-radius: 8px; /* Optional, adds a nice touch if background isn't purely transparent */
+            background-color: #fff; /* Helps in dark mode sidebar to pop out the logo */
+            padding: 4px;
         }
 
         .sidebar-brand h1 {
