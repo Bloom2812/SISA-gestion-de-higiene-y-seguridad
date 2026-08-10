@@ -61,32 +61,6 @@
         // 2. AUTENTICACIÓN (LOGIN/LOGOUT CON FIREBASE)
         // ============================================================
 
-        // Auto-registro inicial del usuario admin para prevenir bloqueos en DB vacía
-        async function ensureAdminUser() {
-            try {
-                await signInWithEmailAndPassword(auth, 'admin@sisa.com', 'admin123');
-            } catch (error) {
-                if (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential') {
-                    try {
-                        const userCredential = await createUserWithEmailAndPassword(auth, 'admin@sisa.com', 'admin123');
-                        const user = userCredential.user;
-
-                        // Guardar en Firestore
-                        await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'usuarios', user.uid), {
-                            nombre: 'Administrador Principal',
-                            correo: 'admin@sisa.com',
-                            rol: 'Administrador',
-                            uid: user.uid,
-                            fechaCreacion: new Date().toISOString()
-                        });
-                        console.log("Admin inicial creado.");
-                    } catch (e) {
-                        console.error("Error auto-registrando admin", e);
-                    }
-                }
-            }
-        }
-
         document.getElementById('loginForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const emailInput = document.getElementById('email');
@@ -100,11 +74,6 @@
 
             btn.disabled = true;
             btn.textContent = '⏳ Iniciando sesión...';
-
-            // Intentar auto-registro para asegurarse de que existe el admin por defecto
-            if(emailInput.value === 'admin@sisa.com' && passwordInput.value === 'admin123') {
-                await ensureAdminUser();
-            }
 
             try {
                 await signInWithEmailAndPassword(auth, emailInput.value, passwordInput.value);
