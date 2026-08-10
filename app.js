@@ -1,7 +1,7 @@
         // Importaciones de Firebase (Mandatorias para este entorno)
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, addDoc, onSnapshot, deleteDoc, doc, updateDoc, setDoc, query, where, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, onSnapshot, deleteDoc, doc, updateDoc, setDoc, query, where, getDocs, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // ==========================================================
         // ⚠️ PEGA AQUÍ TU CONFIGURACIÓN DE FIREBASE ⚠️
@@ -30,11 +30,46 @@
 
         // Variables de estado
         let currentUser = null;
+        let currentUserProfile = null;
         let unsubscribeRiesgos = null;
         let unsubscribeUsuarios = null;
 
+        const ROLES_VALIDOS = [
+            'Administrador',
+            'Gerencia',
+            'Responsable H&S',
+            'Supervisor',
+            'Trabajador'
+        ];
+
         // ============================================================
-        // 1. SISTEMA DE ALERTAS (TOASTS)
+        // 2. OBTENER PERFIL DE USUARIO
+        // ============================================================
+        async function obtenerPerfilUsuario(uid) {
+            const userRef = doc(
+                db,
+                'artifacts',
+                appId,
+                'public',
+                'data',
+                'usuarios',
+                uid
+            );
+
+            const userSnap = await getDoc(userRef);
+
+            if (!userSnap.exists()) {
+                return null;
+            }
+
+            return {
+                id: userSnap.id,
+                ...userSnap.data()
+            };
+        }
+
+        // ============================================================
+        // 3. SISTEMA DE AUTENTICACIÓN
         // ============================================================
         function showToast(message, type = 'success') {
             document.querySelectorAll('.custom-toast').forEach(t => t.remove());
@@ -100,23 +135,51 @@
             if (user) {
                 currentUser = user;
 
-                // Actualizar UI del usuario
-                document.getElementById('userNameDisplay').textContent = user.email.split('@')[0];
+                try {
+                    currentUserProfile = await obtenerPerfilUsuario(user.uid);
 
-                // Transición al Dashboard
-                document.getElementById('loginContainer').classList.add('hidden');
-                document.getElementById('appContainer').classList.add('show');
-                showToast('✅ Conectado exitosamente');
-                document.getElementById('loginBtn').disabled = false;
-                document.getElementById('loginBtn').textContent = '🚀 Iniciar Sesión';
+                    if (!currentUserProfile) {
+                        showToast('No existe un perfil de usuario autorizado para esta cuenta. Contacte al administrador.', 'error');
+                        await signOut(auth);
+                        return;
+                    }
 
-                // Iniciar la escucha de datos
-                iniciarSuscripcionRiesgos();
-                iniciarSuscripcionUsuarios();
-                iniciarSuscripcionAreas();
-                iniciarSuscripcionTrabajadores();
+                    if (!currentUserProfile.rol || !ROLES_VALIDOS.includes(currentUserProfile.rol)) {
+                        showToast('El usuario no tiene un rol válido asignado. Contacte al administrador.', 'error');
+                        await signOut(auth);
+                        return;
+                    }
+
+                    // Actualizar UI del usuario
+                    document.getElementById('userNameDisplay').textContent = currentUserProfile.nombre;
+                    document.getElementById('userRoleDisplay').textContent = currentUserProfile.rol;
+
+                    // Transición al Dashboard
+                    document.getElementById('loginContainer').classList.add('hidden');
+                    document.getElementById('appContainer').classList.add('show');
+                    showToast('✅ Conectado exitosamente');
+                    document.getElementById('loginBtn').disabled = false;
+                    document.getElementById('loginBtn').textContent = '🚀 Iniciar Sesión';
+
+                    // Iniciar la escucha de datos
+                    iniciarSuscripcionRiesgos();
+                    iniciarSuscripcionUsuarios();
+                    iniciarSuscripcionAreas();
+                    iniciarSuscripcionTrabajadores();
+
+                } catch (error) {
+                    console.error("Error al cargar perfil de usuario:", error);
+                    showToast('No fue posible cargar el perfil del usuario.', 'error');
+                    await signOut(auth);
+                }
             } else {
                 currentUser = null;
+                currentUserProfile = null;
+
+                // Limpiar UI del usuario
+                document.getElementById('userNameDisplay').textContent = 'Usuario';
+                document.getElementById('userRoleDisplay').textContent = '-';
+
                 // Transición de vuelta al Login
                 document.getElementById('appContainer').classList.remove('show');
                 document.getElementById('loginContainer').classList.remove('hidden');
