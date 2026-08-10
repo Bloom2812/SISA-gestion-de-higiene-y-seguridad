@@ -1175,6 +1175,9 @@
 
         /* --- Estilos para Impresión --- */
         @media print {
+            @page {
+                margin: 1cm;
+            }
             body * {
                 visibility: hidden;
             }
@@ -1196,14 +1199,63 @@
                 box-shadow: none !important;
                 border: 1px solid #e5e7eb !important;
             }
+            .dossier-header-container {
+                padding: 12px !important;
+                margin-bottom: 16px !important;
+            }
+            .dossier-header-info {
+                flex-direction: row !important;
+                align-items: center !important;
+                text-align: left !important;
+                gap: 16px !important;
+            }
+            .dossier-avatar-container {
+                width: 80px !important;
+                height: 80px !important;
+            }
+            .dossier-header-text h1 {
+                font-size: 20px !important;
+                margin-bottom: 2px !important;
+            }
+            .dossier-header-text .dossier-role {
+                font-size: 14px !important;
+                margin-bottom: 8px !important;
+            }
+            .dossier-header-meta {
+                justify-content: flex-start !important;
+                gap: 12px !important;
+            }
             .dossier-grid {
-                display: block; /* Print normally stacks better */
+                display: grid !important;
+                grid-template-columns: 2fr 1fr !important;
+                gap: 16px !important;
             }
             .dossier-column-main, .dossier-column-side {
-                width: 100%;
-                margin-bottom: 24px;
+                width: auto !important;
+                margin-bottom: 0 !important;
+                gap: 16px !important;
+            }
+            .dossier-card-body {
+                padding: 12px !important;
+            }
+            .dossier-card-header {
+                padding: 10px 16px !important;
+            }
+            .dossier-card-header h3 {
+                font-size: 14px !important;
             }
             .dossier-blood-type {
                 border: 1px solid #e0e3e5 !important;
+                padding: 8px !important;
+                margin-bottom: 12px !important;
+            }
+            .dossier-blood-type .value {
+                font-size: 18px !important;
+            }
+            .dossier-field-value {
+                font-size: 14px !important;
+            }
+            .dossier-card {
+                page-break-inside: avoid;
             }
         }
