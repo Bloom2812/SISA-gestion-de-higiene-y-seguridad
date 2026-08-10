@@ -1178,22 +1178,16 @@
             body * {
                 visibility: hidden;
             }
-            #perfil-print-area, #perfil-print-area *,
-            #perfil-print-area-header, #perfil-print-area-header * {
+            #vista-c-perfil, #vista-c-perfil * {
                 visibility: visible;
             }
-            #perfil-print-area-header {
+            #vista-c-perfil {
                 position: absolute;
                 left: 0;
                 top: 0;
                 width: 100%;
-                margin-bottom: 24px;
-            }
-            #perfil-print-area {
-                position: absolute;
-                left: 0;
-                top: 180px; /* Adjust based on header height */
-                width: 100%;
+                padding: 0;
+                margin: 0;
             }
             .no-print {
                 display: none !important;
