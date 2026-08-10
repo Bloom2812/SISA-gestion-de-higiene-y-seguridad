@@ -1177,6 +1177,14 @@
                 document.getElementById(pageId).classList.add('active');
 
                 document.getElementById('sidebar').classList.remove('open'); // Cierra en móvil
+
+                // Cambiar el encabezado dependiendo de la página
+                const headerTitle = document.querySelector('.header-title');
+                if (this.dataset.page === 'salud') {
+                    headerTitle.innerHTML = 'Salud Ocupacional <span>| Gestión de vigilancia médica y expedientes de salud ocupacional</span>';
+                } else {
+                    headerTitle.innerHTML = 'SISA <span>| Sistema Integral de Seguridad y Ambiente</span>';
+                }
             });
         });
 
