@@ -43,6 +43,33 @@
         ];
 
         // ============================================================
+        // 1.1 PERMISOS DE INTERFAZ
+        // ============================================================
+        function aplicarPermisosInterfaz() {
+            const navConfiguracion = document.getElementById('navConfiguracion');
+            if (!navConfiguracion) return;
+
+            if (currentUserProfile && currentUserProfile.rol === 'Administrador') {
+                navConfiguracion.style.display = '';
+            } else {
+                navConfiguracion.style.display = 'none';
+
+                // Si la página actual es configuración (heredada de otra sesión), enviar al dashboard
+                const pageConfiguracion = document.getElementById('page-configuracion');
+                if (pageConfiguracion && pageConfiguracion.classList.contains('active')) {
+                    // Remover active de configuracion
+                    pageConfiguracion.classList.remove('active');
+                    navConfiguracion.classList.remove('active');
+
+                    // Activar dashboard
+                    document.getElementById('page-dashboard').classList.add('active');
+                    const navDashboard = document.querySelector('.nav-item[data-page="dashboard"]');
+                    if (navDashboard) navDashboard.classList.add('active');
+                }
+            }
+        }
+
+        // ============================================================
         // 2. OBTENER PERFIL DE USUARIO
         // ============================================================
         async function obtenerPerfilUsuario(uid) {
@@ -154,6 +181,9 @@
                     document.getElementById('userNameDisplay').textContent = currentUserProfile.nombre;
                     document.getElementById('userRoleDisplay').textContent = currentUserProfile.rol;
 
+                    // Aplicar permisos visuales antes de transicionar
+                    aplicarPermisosInterfaz();
+
                     // Transición al Dashboard
                     document.getElementById('loginContainer').classList.add('hidden');
                     document.getElementById('appContainer').classList.add('show');
@@ -163,9 +193,12 @@
 
                     // Iniciar la escucha de datos
                     iniciarSuscripcionRiesgos();
-                    iniciarSuscripcionUsuarios();
                     iniciarSuscripcionAreas();
                     iniciarSuscripcionTrabajadores();
+
+                    if (currentUserProfile.rol === 'Administrador') {
+                        iniciarSuscripcionUsuarios();
+                    }
 
                 } catch (error) {
                     console.error("Error al cargar perfil de usuario:", error);
@@ -175,6 +208,11 @@
             } else {
                 currentUser = null;
                 currentUserProfile = null;
+
+                const navConfiguracion = document.getElementById('navConfiguracion');
+                if (navConfiguracion) {
+                    navConfiguracion.style.display = 'none';
+                }
 
                 // Limpiar UI del usuario
                 document.getElementById('userNameDisplay').textContent = 'Usuario';
@@ -1201,6 +1239,12 @@
 
         navItems.forEach(item => {
             item.addEventListener('click', function() {
+                // Validación de acceso a configuración ANTES de cambiar visualmente
+                if (this.dataset.page === 'configuracion' && (!currentUserProfile || currentUserProfile.rol !== 'Administrador')) {
+                    showToast('No tiene permisos para acceder a Configuración.', 'error');
+                    return;
+                }
+
                 navItems.forEach(n => n.classList.remove('active'));
                 this.classList.add('active');
 
