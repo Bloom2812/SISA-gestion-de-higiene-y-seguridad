@@ -1,0 +1,1 @@
+Pruebas estáticas: La estructura de reglas verifica 'collectionName != usuarios' en la regla transitoria, asegurando que usuarios se maneje únicamente por las reglas de la sección /usuarios/{userId}. Esto ha sido documentado.

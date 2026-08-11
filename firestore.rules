@@ -1,0 +1,68 @@
+rules_version = '2';
+
+service cloud.firestore {
+
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin(appId) {
+      return isSignedIn()
+        && exists(
+          /databases/$(database)/documents/artifacts/$(appId)/public/data/usuarios/$(request.auth.uid)
+        )
+        && get(
+          /databases/$(database)/documents/artifacts/$(appId)/public/data/usuarios/$(request.auth.uid)
+        ).data.rol == 'Administrador';
+    }
+
+
+    match /artifacts/{appId}/public/data {
+
+
+      // ============================================
+      // USUARIOS
+      // ============================================
+
+      match /usuarios/{userId} {
+
+        allow get:
+          if isSignedIn()
+          && (
+            request.auth.uid == userId
+            || isAdmin(appId)
+          );
+
+        allow list:
+          if isAdmin(appId);
+
+        allow create:
+          if isAdmin(appId);
+
+        allow update:
+          if isAdmin(appId);
+
+        allow delete:
+          if isAdmin(appId);
+      }
+
+
+      // ============================================
+      // RESTO DE COLECCIONES - REGLA TRANSITORIA
+      // ============================================
+
+      match /{collectionName}/{document=**} {
+
+        // REGLA TRANSITORIA.
+        // Mantiene temporalmente el comportamiento actual de las colecciones
+        // que aún no han sido migradas a reglas de seguridad por rol.
+        // NO extender la fecha de expiración sin revisión de seguridad.
+        allow read, write:
+          if collectionName != 'usuarios'
+          && request.time < timestamp.date(2026, 12, 20);
+      }
+    }
+  }
+}
