@@ -267,8 +267,15 @@
                                     <option value="">Todas las Áreas</option>
                                     <!-- Options populated by JS -->
                                 </select>
-                                <select id="filterEstado" class="form-control" style="width: auto;">
-                                    <option value="">Estado: Todos</option>
+                                <select id="filterEstadoLaboral" class="form-control" style="width: auto;">
+                                    <option value="">Estado laboral: Todos</option>
+                                    <option value="Activo">Activo</option>
+                                    <option value="Inactivo">Inactivo</option>
+                                    <option value="Retirado">Retirado</option>
+                                    <option value="No definido">No definido</option>
+                                </select>
+                                <select id="filterEstadoMedico" class="form-control" style="width: auto;">
+                                    <option value="">Vigilancia médica: Todos</option>
                                     <option value="success">🟢 Vigente</option>
                                     <option value="warning">🟡 Por Vencer</option>
                                     <option value="danger">🔴 Vencido</option>
@@ -328,6 +335,15 @@
                                         <div class="form-group">
                                             <label>Puesto de Trabajo *</label>
                                             <input type="text" id="t_puesto" class="form-control" required />
+                                        </div>
+                                        <div class="form-group">
+                                            <label>Estado Laboral *</label>
+                                            <select id="t_estado_laboral" class="form-control" required>
+                                                <option value="">Seleccione...</option>
+                                                <option value="Activo">Activo</option>
+                                                <option value="Inactivo">Inactivo</option>
+                                                <option value="Retirado">Retirado</option>
+                                            </select>
                                         </div>
                                         <div class="form-group" style="grid-column: span 2;">
                                             <label>Fotografía</label>
@@ -504,6 +520,14 @@
                                         <h3>Detalles y EPP</h3>
                                     </div>
                                     <div class="dossier-card-body dossier-grid-2-col">
+                                        <div class="dossier-field">
+                                            <p class="dossier-field-label">Estado Laboral</p>
+                                            <p class="dossier-field-value" id="p_estado_laboral">-</p>
+                                        </div>
+                                        <div class="dossier-field">
+                                            <p class="dossier-field-label">Vigilancia Médica</p>
+                                            <p class="dossier-field-value" id="p_estado_vigilancia_medica">-</p>
+                                        </div>
                                         <div class="dossier-field">
                                             <p class="dossier-field-label">Talla de Ropa</p>
                                             <p class="dossier-field-value" id="p_talla_ropa">-</p>
