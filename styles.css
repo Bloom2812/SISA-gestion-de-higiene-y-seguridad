@@ -620,6 +620,24 @@
             margin-bottom: 16px;
         }
 
+        .worker-status-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .worker-status-group > div {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .worker-status-group .status-label {
+            font-size: 12px;
+            color: #6b7280;
+            font-weight: 500;
+        }
+
         .worker-card-header .badge {
             display: inline-flex;
             align-items: center;

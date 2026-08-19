@@ -826,7 +826,7 @@
         const defaultProfileSVG = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%239ca3af"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z"/></svg>`;
 
         // Variables para filtrado
-        let filtrosTrabajadores = { busqueda: '', departamento: '', estado: '' };
+        let filtrosTrabajadores = { busqueda: '', departamento: '', estadoLaboral: '', estadoMedico: '' };
 
         function renderizarTarjetasTrabajadores() {
             const grid = document.getElementById('trabajadoresGrid');
@@ -851,10 +851,14 @@
                 const cumpleDepto = filtrosTrabajadores.departamento === '' ||
                                   t.departamento === filtrosTrabajadores.departamento;
 
-                const cumpleEstado = filtrosTrabajadores.estado === '' ||
-                                   semaforo.color === filtrosTrabajadores.estado;
+                const estadoLaboralT = t.estado_laboral || 'No definido';
+                const cumpleEstadoLaboral = filtrosTrabajadores.estadoLaboral === '' ||
+                                   estadoLaboralT === filtrosTrabajadores.estadoLaboral;
 
-                return cumpleBusqueda && cumpleDepto && cumpleEstado;
+                const cumpleEstadoMedico = filtrosTrabajadores.estadoMedico === '' ||
+                                   semaforo.color === filtrosTrabajadores.estadoMedico;
+
+                return cumpleBusqueda && cumpleDepto && cumpleEstadoLaboral && cumpleEstadoMedico;
             });
 
             if (filtrados.length === 0) {
@@ -868,11 +872,25 @@
                     `<img src="${t.fotografia_url}" alt="Foto de ${t.nombres}">` :
                     `<div class="avatar-placeholder">👤</div>`;
 
+                const estadoLaboralT = t.estado_laboral || 'No definido';
+                let colorEstadoLaboral = 'badge-gray';
+                if (estadoLaboralT === 'Activo') colorEstadoLaboral = 'badge-success';
+                else if (estadoLaboralT === 'Retirado') colorEstadoLaboral = 'badge-info';
+
                 const card = document.createElement('div');
                 card.className = 'worker-card';
                 card.innerHTML = `
                     <div class="worker-card-header">
-                        <span class="badge badge-${semaforo.color}">${semaforo.texto}</span>
+                        <div class="worker-status-group">
+                            <div>
+                                <span class="status-label">Estado laboral:</span>
+                                <span class="badge ${colorEstadoLaboral}">${estadoLaboralT}</span>
+                            </div>
+                            <div>
+                                <span class="status-label">Vigilancia médica:</span>
+                                <span class="badge badge-${semaforo.color}">${semaforo.texto}</span>
+                            </div>
+                        </div>
                         <button class="options-btn btn-eliminar-trabajador" data-id="${t.id}" title="Eliminar Miembro">
                             🗑️
                         </button>
@@ -926,8 +944,13 @@
             renderizarTarjetasTrabajadores();
         });
 
-        document.getElementById('filterEstado').addEventListener('change', (e) => {
-            filtrosTrabajadores.estado = e.target.value;
+        document.getElementById('filterEstadoLaboral').addEventListener('change', (e) => {
+            filtrosTrabajadores.estadoLaboral = e.target.value;
+            renderizarTarjetasTrabajadores();
+        });
+
+        document.getElementById('filterEstadoMedico').addEventListener('change', (e) => {
+            filtrosTrabajadores.estadoMedico = e.target.value;
             renderizarTarjetasTrabajadores();
         });
 
@@ -1003,6 +1026,17 @@
             document.getElementById('p_edad').textContent = `${edad} años`;
             document.getElementById('p_tipo_sangre').textContent = t.tipo_sangre || 'No reg.';
 
+            // Estados en el perfil
+            const estadoLaboralT = t.estado_laboral || 'No definido';
+            let colorEstadoLaboral = 'badge-gray';
+            if (estadoLaboralT === 'Activo') colorEstadoLaboral = 'badge-success';
+            else if (estadoLaboralT === 'Retirado') colorEstadoLaboral = 'badge-info';
+
+            const semaforo = evaluarSemaforoMedico(t.examenes);
+
+            document.getElementById('p_estado_laboral').innerHTML = `<span class="badge ${colorEstadoLaboral}">${estadoLaboralT}</span>`;
+            document.getElementById('p_estado_vigilancia_medica').innerHTML = `<span class="badge badge-${semaforo.color}">${semaforo.texto}</span>`;
+
             // Tarjetas medias
             document.getElementById('p_alergias').textContent = t.alergias && t.alergias.length > 0 ? t.alergias.join(', ') : 'Ninguna';
             document.getElementById('p_condiciones').textContent = t.condiciones_medicas && t.condiciones_medicas.length > 0 ? t.condiciones_medicas.join(', ') : 'Ninguna';
@@ -1066,6 +1100,7 @@
             document.getElementById('t_dni').value = t.dni;
             document.getElementById('t_fecha_nacimiento').value = t.fecha_nacimiento;
             document.getElementById('t_puesto').value = t.puesto_trabajo;
+            document.getElementById('t_estado_laboral').value = t.estado_laboral || '';
             document.getElementById('t_tipo_sangre').value = t.tipo_sangre || '';
             document.getElementById('t_emergencia_nombre').value = t.emergencia_contacto_nombre || '';
             document.getElementById('t_emergencia_parentesco').value = t.emergencia_contacto_parentesco || '';
@@ -1184,6 +1219,14 @@
                     }
                 }
 
+                const estadoLaboralVal = document.getElementById('t_estado_laboral').value;
+                if (!['Activo', 'Inactivo', 'Retirado'].includes(estadoLaboralVal)) {
+                    showToast('Seleccione un estado laboral válido.', 'error');
+                    btn.disabled = false;
+                    btn.textContent = '✅ Guardar Trabajador';
+                    return;
+                }
+
                 const trabajadorData = {
                     nombres: document.getElementById('t_nombres').value,
                     apellidos: document.getElementById('t_apellidos').value,
@@ -1191,6 +1234,7 @@
                     fecha_nacimiento: document.getElementById('t_fecha_nacimiento').value,
                     departamento: document.getElementById('t_departamento').value,
                     puesto_trabajo: document.getElementById('t_puesto').value,
+                    estado_laboral: estadoLaboralVal,
 
                     tipo_sangre: document.getElementById('t_tipo_sangre').value,
                     alergias: t_alergias_array,
