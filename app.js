@@ -619,6 +619,7 @@
             document.getElementById('vista-a-titulo').textContent = '📝 Nuevo Trabajador';
             document.getElementById('formTrabajador').reset();
             document.getElementById('t_id').value = '';
+            actualizarCamposAptitud();
 
             // Reset Arrays
             t_alergias_array = [];
@@ -704,6 +705,33 @@
                 mostrarPasoWizard(targetStep);
             });
         });
+
+        // --- LÓGICA DE UI DE APTITUD ---
+        function actualizarCamposAptitud() {
+            const selectAptitud = document.getElementById('t_aptitud_ocupacional');
+            const valorAptitud = selectAptitud.value;
+            const containerRestricciones = document.getElementById('container_aptitud_restricciones');
+            const inputRestricciones = document.getElementById('t_aptitud_restricciones');
+            const inputFecha = document.getElementById('t_aptitud_fecha');
+
+            if (valorAptitud === 'Apto con restricciones') {
+                containerRestricciones.style.display = '';
+                inputRestricciones.required = true;
+                inputFecha.required = true;
+            } else {
+                containerRestricciones.style.display = 'none';
+                inputRestricciones.required = false;
+                inputRestricciones.value = '';
+
+                if (valorAptitud === 'Pendiente de evaluación') {
+                    inputFecha.required = false;
+                } else {
+                    inputFecha.required = true; // Apto o No apto temporalmente
+                }
+            }
+        }
+
+        document.getElementById('t_aptitud_ocupacional').addEventListener('change', actualizarCamposAptitud);
 
         // --- LISTAS DINÁMICAS (ALERGIAS, CONDICIONES, EXÁMENES) ---
         function renderArrays() {
@@ -826,7 +854,7 @@
         const defaultProfileSVG = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%239ca3af"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z"/></svg>`;
 
         // Variables para filtrado
-        let filtrosTrabajadores = { busqueda: '', departamento: '', estadoLaboral: '', estadoMedico: '', archivo: 'activos' };
+        let filtrosTrabajadores = { busqueda: '', departamento: '', estadoLaboral: '', estadoMedico: '', aptitudOcupacional: '', archivo: 'activos' };
 
         function renderizarTarjetasTrabajadores() {
             const grid = document.getElementById('trabajadoresGrid');
@@ -858,6 +886,10 @@
                 const cumpleEstadoMedico = filtrosTrabajadores.estadoMedico === '' ||
                                    semaforo.color === filtrosTrabajadores.estadoMedico;
 
+                const aptitud = t.aptitud_ocupacional || 'Pendiente de evaluación';
+                const cumpleAptitud = filtrosTrabajadores.aptitudOcupacional === '' ||
+                                    aptitud === filtrosTrabajadores.aptitudOcupacional;
+
                 const estaArchivado = t.archivado === true;
                 let cumpleArchivo = true;
                 if (filtrosTrabajadores.archivo === 'activos') {
@@ -866,7 +898,7 @@
                     cumpleArchivo = estaArchivado;
                 }
 
-                return cumpleBusqueda && cumpleDepto && cumpleEstadoLaboral && cumpleEstadoMedico && cumpleArchivo;
+                return cumpleBusqueda && cumpleDepto && cumpleEstadoLaboral && cumpleEstadoMedico && cumpleAptitud && cumpleArchivo;
             });
 
             if (filtrados.length === 0) {
@@ -884,6 +916,13 @@
                 let colorEstadoLaboral = 'badge-gray';
                 if (estadoLaboralT === 'Activo') colorEstadoLaboral = 'badge-success';
                 else if (estadoLaboralT === 'Retirado') colorEstadoLaboral = 'badge-info';
+
+                const aptitudOcupacional = t.aptitud_ocupacional || 'Pendiente de evaluación';
+                let colorAptitudOcupacional = 'badge-gray';
+                if (aptitudOcupacional === 'Apto') colorAptitudOcupacional = 'badge-success';
+                else if (aptitudOcupacional === 'Apto con restricciones') colorAptitudOcupacional = 'badge-warning';
+                else if (aptitudOcupacional === 'No apto temporalmente') colorAptitudOcupacional = 'badge-danger';
+
 
                 const estaArchivado = t.archivado === true;
 
@@ -922,6 +961,10 @@
                             <div>
                                 <span class="status-label">Vigilancia médica:</span>
                                 <span class="badge badge-${semaforo.color}">${semaforo.texto}</span>
+                            </div>
+                            <div>
+                                <span class="status-label">Aptitud ocupacional:</span>
+                                <span class="badge ${colorAptitudOcupacional}">${aptitudOcupacional}</span>
                             </div>
                         </div>
                         ${actionButtonHtml}
@@ -988,6 +1031,11 @@
 
         document.getElementById('filterEstadoMedico').addEventListener('change', (e) => {
             filtrosTrabajadores.estadoMedico = e.target.value;
+            renderizarTarjetasTrabajadores();
+        });
+
+        document.getElementById('filterAptitudOcupacional').addEventListener('change', (e) => {
+            filtrosTrabajadores.aptitudOcupacional = e.target.value;
             renderizarTarjetasTrabajadores();
         });
 
@@ -1122,6 +1170,28 @@
                 });
             }
 
+            // Aptitud Ocupacional
+            const aptitudOcupacional = t.aptitud_ocupacional || 'Pendiente de evaluación';
+            let colorAptitud = 'badge-gray';
+            if (aptitudOcupacional === 'Apto') colorAptitud = 'badge-success';
+            else if (aptitudOcupacional === 'Apto con restricciones') colorAptitud = 'badge-warning';
+            else if (aptitudOcupacional === 'No apto temporalmente') colorAptitud = 'badge-danger';
+
+            document.getElementById('p_aptitud_ocupacional').innerHTML = `<span class="badge ${colorAptitud}">${aptitudOcupacional}</span>`;
+            document.getElementById('p_aptitud_fecha').textContent = t.aptitud_fecha || '-';
+            document.getElementById('p_aptitud_vigencia').textContent = t.aptitud_vigencia || '-';
+            document.getElementById('p_aptitud_observaciones').textContent = t.aptitud_observaciones || '-';
+
+            const pRestricciones = document.getElementById('p_aptitud_restricciones');
+            const containerRestricciones = document.getElementById('container_p_aptitud_restricciones');
+
+            if (aptitudOcupacional === 'Apto con restricciones') {
+                containerRestricciones.style.display = '';
+                pRestricciones.textContent = t.aptitud_restricciones || 'No aplica';
+            } else {
+                containerRestricciones.style.display = 'none';
+            }
+
             // Configurar botón de edición
             document.getElementById('btnEditarPerfil').onclick = () => editarTrabajador(id);
         }
@@ -1218,6 +1288,13 @@
             document.getElementById('t_talla_ropa').value = t.talla_ropa || '';
             document.getElementById('t_talla_calzado').value = t.talla_calzado || '';
 
+            document.getElementById('t_aptitud_ocupacional').value = t.aptitud_ocupacional || 'Pendiente de evaluación';
+            document.getElementById('t_aptitud_fecha').value = t.aptitud_fecha || '';
+            document.getElementById('t_aptitud_vigencia').value = t.aptitud_vigencia || '';
+            document.getElementById('t_aptitud_observaciones').value = t.aptitud_observaciones || '';
+            document.getElementById('t_aptitud_restricciones').value = t.aptitud_restricciones || '';
+            actualizarCamposAptitud();
+
             await poblarSelectAreas();
             document.getElementById('t_departamento').value = t.departamento;
 
@@ -1283,6 +1360,36 @@
 
             const id = document.getElementById('t_id').value;
             const dni = document.getElementById('t_dni').value;
+
+            const aptitudOcupacional = document.getElementById('t_aptitud_ocupacional').value;
+            const aptitudFecha = document.getElementById('t_aptitud_fecha').value;
+            const aptitudVigencia = document.getElementById('t_aptitud_vigencia').value;
+            const aptitudRestricciones = document.getElementById('t_aptitud_restricciones').value;
+            const aptitudObservaciones = document.getElementById('t_aptitud_observaciones').value;
+
+            // Validaciones Aptitud Ocupacional
+            if (aptitudOcupacional !== 'Pendiente de evaluación' && !aptitudFecha) {
+                showToast('Ingrese la fecha de evaluación de la aptitud ocupacional.', 'error');
+                btn.disabled = false;
+                btn.textContent = '✅ Guardar Trabajador';
+                return;
+            }
+
+            if (aptitudFecha && aptitudVigencia) {
+                if (new Date(aptitudVigencia) < new Date(aptitudFecha)) {
+                    showToast('La fecha de vigencia de la aptitud no puede ser anterior a la fecha de evaluación.', 'error');
+                    btn.disabled = false;
+                    btn.textContent = '✅ Guardar Trabajador';
+                    return;
+                }
+            }
+
+            if (aptitudOcupacional === 'Apto con restricciones' && aptitudRestricciones.trim() === '') {
+                showToast('Debe especificar las restricciones laborales aplicables.', 'error');
+                btn.disabled = false;
+                btn.textContent = '✅ Guardar Trabajador';
+                return;
+            }
 
             try {
                 // Validación DNI Único
@@ -1357,6 +1464,12 @@
                     talla_ropa: document.getElementById('t_talla_ropa').value,
                     talla_calzado: document.getElementById('t_talla_calzado').value,
                     examenes: t_examenes_array,
+
+                    aptitud_ocupacional: aptitudOcupacional,
+                    aptitud_fecha: aptitudFecha,
+                    aptitud_vigencia: aptitudVigencia,
+                    aptitud_restricciones: aptitudOcupacional === 'Apto con restricciones' ? aptitudRestricciones : '',
+                    aptitud_observaciones: aptitudObservaciones,
 
                     fechaActualizacion: new Date().toISOString()
                 };
