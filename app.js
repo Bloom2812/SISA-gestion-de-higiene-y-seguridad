@@ -1,7 +1,7 @@
         // Importaciones de Firebase (Mandatorias para este entorno)
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, addDoc, onSnapshot, deleteDoc, doc, updateDoc, setDoc, query, where, getDocs, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, onSnapshot, deleteDoc, doc, updateDoc, setDoc, query, where, getDocs, getDoc, writeBatch, serverTimestamp, orderBy } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // ==========================================================
         // ⚠️ PEGA AQUÍ TU CONFIGURACIÓN DE FIREBASE ⚠️
@@ -991,9 +991,7 @@
             });
 
             document.querySelectorAll('.btn-ver-historial').forEach(btn => {
-                btn.addEventListener('click', (e) => {
-                    showToast('Funcionalidad de Historial/Incidentes próximamente', 'info');
-                });
+                btn.addEventListener('click', (e) => abrirHistorialOcupacional(e.currentTarget.dataset.id));
             });
 
             document.querySelectorAll('.btn-archivar-trabajador').forEach(btn => {
@@ -1088,6 +1086,140 @@
         }
 
         // --- VISTA C: DOSSIER MÉDICO ---
+// --- FUNCIONES HISTORIAL OCUPACIONAL ---
+
+        function crearDatosEventoHistorial(tipoEvento, titulo, detalle = {}) {
+            return {
+                tipo_evento: tipoEvento,
+                titulo: titulo,
+                fecha_evento: serverTimestamp(),
+                usuario_uid: currentUser?.uid || null,
+                usuario_nombre: currentUserProfile?.nombre || 'Usuario',
+                usuario_rol: currentUserProfile?.rol || null,
+                detalle: detalle
+            };
+        }
+
+        function formatFecha(timestampOrString) {
+            if (!timestampOrString) return '';
+            const date = timestampOrString.toDate ? timestampOrString.toDate() : new Date(timestampOrString);
+            return date.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
+        }
+
+        async function abrirHistorialOcupacional(id) {
+            const t = cacheTrabajadores[id];
+            if(!t) return;
+
+            document.getElementById('vista-b-trabajadores').style.display = 'none';
+            document.getElementById('vista-a-registro').style.display = 'none';
+            document.getElementById('vista-c-perfil').style.display = 'none';
+            document.getElementById('vista-d-historial').style.display = 'block';
+
+            document.getElementById('historialTrabajadorNombre').textContent = `${t.nombres} ${t.apellidos}`;
+            document.getElementById('historialTrabajadorPuesto').textContent = `${t.puesto_trabajo} | ${t.departamento}`;
+
+            const timelineContainer = document.getElementById('historialTimeline');
+            timelineContainer.innerHTML = '<div style="text-align:center; padding: 20px; color: #6b7280;">Cargando historial...</div>';
+
+            try {
+                const historialRef = collection(db, 'artifacts', appId, 'public', 'data', 'trabajadores', id, 'historial_ocupacional');
+                const q = query(historialRef, orderBy('fecha_evento', 'desc'));
+                const snapshot = await getDocs(q);
+
+                if (snapshot.empty) {
+                    timelineContainer.innerHTML = '<div style="text-align:center; padding: 20px; color: #6b7280;">No existen eventos ocupacionales registrados para este trabajador.<br><br>El historial se genera a partir de la habilitación de esta funcionalidad.</div>';
+                    return;
+                }
+
+                timelineContainer.innerHTML = '';
+
+                snapshot.forEach(docSnap => {
+                    const evento = docSnap.data();
+                    let icon = '📝';
+                    let descriptionHtml = '';
+
+                    switch(evento.tipo_evento) {
+                        case 'CREACION_EXPEDIENTE':
+                            icon = '👤';
+                            descriptionHtml = `Expediente ocupacional registrado.<br>`;
+                            if (evento.detalle) {
+                                descriptionHtml += `<div class="timeline-detail">
+                                    Área: ${evento.detalle.departamento || '-'} / Puesto: ${evento.detalle.puesto_trabajo || '-'}<br>
+                                    Estado: ${evento.detalle.estado_laboral || '-'}<br>
+                                    Aptitud: ${evento.detalle.aptitud_ocupacional || '-'}
+                                </div>`;
+                            }
+                            break;
+                        case 'CAMBIO_AREA_PUESTO':
+                            icon = '🏢';
+                            const dArea = evento.detalle.area_anterior !== evento.detalle.area_nueva;
+                            const dPuesto = evento.detalle.puesto_anterior !== evento.detalle.puesto_nuevo;
+
+                            if (dArea && dPuesto) {
+                                descriptionHtml = `Área: ${evento.detalle.area_anterior} → <strong>${evento.detalle.area_nueva}</strong><br>Puesto: ${evento.detalle.puesto_anterior} → <strong>${evento.detalle.puesto_nuevo}</strong>`;
+                            } else if (dArea) {
+                                descriptionHtml = `Área: ${evento.detalle.area_anterior} → <strong>${evento.detalle.area_nueva}</strong>`;
+                            } else if (dPuesto) {
+                                descriptionHtml = `Puesto: ${evento.detalle.puesto_anterior} → <strong>${evento.detalle.puesto_nuevo}</strong>`;
+                            } else {
+                                descriptionHtml = `Área / Puesto actualizado.`;
+                            }
+                            break;
+                        case 'CAMBIO_ESTADO_LABORAL':
+                            icon = '💼';
+                            descriptionHtml = `Estado laboral: ${evento.detalle.anterior} → <strong>${evento.detalle.nuevo}</strong>`;
+                            break;
+                        case 'APTITUD_OCUPACIONAL':
+                            icon = '🩺';
+                            descriptionHtml = `Aptitud: ${evento.detalle.aptitud_anterior || '-'} → <strong>${evento.detalle.aptitud_nueva || '-'}</strong>`;
+                            if (evento.detalle.restricciones) {
+                                descriptionHtml += `<div class="timeline-detail">Restricciones: ${evento.detalle.restricciones}</div>`;
+                            }
+                            break;
+                        case 'ARCHIVADO_EXPEDIENTE':
+                            icon = '📦';
+                            descriptionHtml = `Expediente archivado.<div class="timeline-detail">Motivo: ${evento.detalle.motivo || '-'}</div>`;
+                            break;
+                        case 'RESTAURACION_EXPEDIENTE':
+                            icon = '↩️';
+                            descriptionHtml = `Expediente restaurado al directorio activo.`;
+                            break;
+                        default:
+                            icon = '📝';
+                            descriptionHtml = `Evento registrado.`;
+                    }
+
+                    const itemHtml = `
+                        <div class="timeline-item">
+                            <div class="timeline-marker">${icon}</div>
+                            <div class="timeline-content">
+                                <div class="timeline-header">
+                                    <div class="timeline-title">${evento.titulo || 'Evento Ocupacional'}</div>
+                                    <div class="timeline-date">${formatFecha(evento.fecha_evento)}</div>
+                                </div>
+                                <div class="timeline-detail">
+                                    ${descriptionHtml}
+                                </div>
+                                <div class="timeline-user">
+                                    <span>Registrado por: ${evento.usuario_nombre} ${evento.usuario_rol ? `(${evento.usuario_rol})` : ''}</span>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    timelineContainer.insertAdjacentHTML('beforeend', itemHtml);
+                });
+
+            } catch (error) {
+                console.error("Error al cargar historial ocupacional:", error);
+                timelineContainer.innerHTML = '<div style="text-align:center; padding: 20px; color: #ef4444;">Error al cargar el historial.</div>';
+            }
+        }
+
+        document.getElementById('btnVolverHistorial').addEventListener('click', () => {
+            document.getElementById('vista-d-historial').style.display = 'none';
+            document.getElementById('vista-b-trabajadores').style.display = 'block';
+        });
+
         function abrirDossierMedico(id) {
             const t = cacheTrabajadores[id];
             if(!t) return;
@@ -1220,13 +1352,27 @@
                 btn.disabled = true;
                 btn.textContent = 'Archivando...';
 
-                await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'trabajadores', trabajadorAArchivarId), {
+                const batch = writeBatch(db);
+                const trabajadorRef = doc(db, 'artifacts', appId, 'public', 'data', 'trabajadores', trabajadorAArchivarId);
+                const oldT = cacheTrabajadores[trabajadorAArchivarId] || {};
+
+                batch.update(trabajadorRef, {
                     archivado: true,
                     fecha_archivado: new Date().toISOString(),
                     motivo_archivado: motivo,
                     archivado_por_uid: currentUser.uid,
                     archivado_por_nombre: currentUserProfile?.nombre || 'Usuario'
                 });
+
+                const eventoArchivado = crearDatosEventoHistorial('ARCHIVADO_EXPEDIENTE', 'Expediente Archivado', {
+                    motivo: motivo,
+                    estado_laboral: oldT.estado_laboral || 'No definido'
+                });
+
+                const eventoRef = doc(collection(trabajadorRef, 'historial_ocupacional'));
+                batch.set(eventoRef, eventoArchivado);
+
+                await batch.commit();
 
                 showToast('✅ Expediente archivado correctamente');
                 document.getElementById('modalArchivarTrabajador').classList.remove('show');
@@ -1245,12 +1391,22 @@
         // --- RESTAURAR TRABAJADOR ---
         async function restaurarTrabajador(id) {
             try {
-                await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'trabajadores', id), {
+                const batch = writeBatch(db);
+                const trabajadorRef = doc(db, 'artifacts', appId, 'public', 'data', 'trabajadores', id);
+
+                batch.update(trabajadorRef, {
                     archivado: false,
                     fecha_restauracion: new Date().toISOString(),
                     restaurado_por_uid: currentUser.uid,
                     restaurado_por_nombre: currentUserProfile?.nombre || 'Usuario'
                 });
+
+                const eventoRestauracion = crearDatosEventoHistorial('RESTAURACION_EXPEDIENTE', 'Expediente Restaurado');
+                const eventoRef = doc(collection(trabajadorRef, 'historial_ocupacional'));
+                batch.set(eventoRef, eventoRestauracion);
+
+                await batch.commit();
+
                 showToast('✅ Expediente restaurado correctamente');
             } catch (error) {
                 console.error("Error al restaurar:", error);
@@ -1476,13 +1632,75 @@
 
                 if(fotoUrl) trabajadorData.fotografia_url = fotoUrl;
 
+                const batch = writeBatch(db);
+
                 if (id) {
-                    await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'trabajadores', id), trabajadorData);
+                    // Editar existente
+                    const trabajadorRef = doc(db, 'artifacts', appId, 'public', 'data', 'trabajadores', id);
+                    const historialRefBase = collection(trabajadorRef, 'historial_ocupacional');
+                    const oldT = cacheTrabajadores[id] || {};
+
+                    // 1. CAMBIO_AREA_PUESTO
+                    if (oldT.departamento !== trabajadorData.departamento || oldT.puesto_trabajo !== trabajadorData.puesto_trabajo) {
+                        const eventoArea = crearDatosEventoHistorial('CAMBIO_AREA_PUESTO', 'Cambio de Área o Puesto', {
+                            area_anterior: oldT.departamento || 'No definido',
+                            area_nueva: trabajadorData.departamento,
+                            puesto_anterior: oldT.puesto_trabajo || 'No definido',
+                            puesto_nuevo: trabajadorData.puesto_trabajo
+                        });
+                        batch.set(doc(historialRefBase), eventoArea);
+                    }
+
+                    // 2. CAMBIO_ESTADO_LABORAL
+                    if (oldT.estado_laboral !== trabajadorData.estado_laboral) {
+                        const eventoEstado = crearDatosEventoHistorial('CAMBIO_ESTADO_LABORAL', 'Cambio de Estado Laboral', {
+                            anterior: oldT.estado_laboral || 'No definido',
+                            nuevo: trabajadorData.estado_laboral
+                        });
+                        batch.set(doc(historialRefBase), eventoEstado);
+                    }
+
+                    // 3. APTITUD_OCUPACIONAL
+                    const aptitudCambiada =
+                        oldT.aptitud_ocupacional !== trabajadorData.aptitud_ocupacional ||
+                        oldT.aptitud_fecha !== trabajadorData.aptitud_fecha ||
+                        oldT.aptitud_vigencia !== trabajadorData.aptitud_vigencia ||
+                        oldT.aptitud_restricciones !== trabajadorData.aptitud_restricciones;
+
+                    if (aptitudCambiada) {
+                        const eventoAptitud = crearDatosEventoHistorial('APTITUD_OCUPACIONAL', 'Actualización de Aptitud Ocupacional', {
+                            aptitud_anterior: oldT.aptitud_ocupacional || 'No definido',
+                            aptitud_nueva: trabajadorData.aptitud_ocupacional,
+                            fecha_evaluacion: trabajadorData.aptitud_fecha || null,
+                            vigencia_hasta: trabajadorData.aptitud_vigencia || null,
+                            restricciones: trabajadorData.aptitud_restricciones || null
+                        });
+                        batch.set(doc(historialRefBase), eventoAptitud);
+                    }
+
+                    batch.update(trabajadorRef, trabajadorData);
+
+                    await batch.commit();
                     showToast('✅ Trabajador actualizado exitosamente');
                 } else {
+                    // Crear nuevo
+                    const trabajadorRef = doc(coleccionTrabajadores);
                     trabajadorData.fechaCreacion = new Date().toISOString();
                     trabajadorData.archivado = false;
-                    await addDoc(coleccionTrabajadores, trabajadorData);
+
+                    const eventoCreacion = crearDatosEventoHistorial('CREACION_EXPEDIENTE', 'Expediente Creado', {
+                        estado_laboral: trabajadorData.estado_laboral,
+                        departamento: trabajadorData.departamento,
+                        puesto_trabajo: trabajadorData.puesto_trabajo,
+                        aptitud_ocupacional: trabajadorData.aptitud_ocupacional
+                    });
+
+                    const historialRefBase = collection(trabajadorRef, 'historial_ocupacional');
+
+                    batch.set(trabajadorRef, trabajadorData);
+                    batch.set(doc(historialRefBase), eventoCreacion);
+
+                    await batch.commit();
                     showToast('✅ Trabajador registrado exitosamente');
                 }
 
@@ -1490,7 +1708,7 @@
 
             } catch (error) {
                 console.error("Error al guardar trabajador:", error);
-                showToast('Error al guardar el trabajador', 'error');
+                showToast('No fue posible guardar el cambio y su historial.', 'error');
             } finally {
                 btn.disabled = false;
                 btn.textContent = '✅ Guardar Trabajador';
