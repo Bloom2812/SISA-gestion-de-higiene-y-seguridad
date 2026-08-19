@@ -281,6 +281,11 @@
                                     <option value="danger">🔴 Vencido</option>
                                     <option value="gray">⚪ Sin Registro</option>
                                 </select>
+                                <select id="filterArchivo" class="form-control" style="width: auto;">
+                                    <option value="activos">Expedientes activos</option>
+                                    <option value="archivados">Expedientes archivados</option>
+                                    <option value="todos">Todos los expedientes</option>
+                                </select>
                                 <button class="btn btn-success" id="btnNuevoTrabajador">➕ Registrar Miembro</button>
                             </div>
                         </div>
@@ -799,6 +804,28 @@
                     <button type="submit" class="btn btn-primary" id="btnSubmitArea">✅ Guardar Área</button>
                 </div>
             </form>
+        </div>
+    </div>
+
+    <!-- Modal Archivar Trabajador -->
+    <div class="modal-overlay" id="modalArchivarTrabajador">
+        <div class="modal">
+            <div class="modal-header">
+                <h2>📦 Archivar expediente</h2>
+                <button type="button" class="modal-close" onclick="document.getElementById('modalArchivarTrabajador').classList.remove('show')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p>Trabajador: <strong id="archivarTrabajadorNombre">-</strong></p>
+                <div class="form-group" style="margin-top: 15px;">
+                    <label>Motivo del archivado *</label>
+                    <textarea id="motivoArchivadoTrabajador" class="form-control" rows="3" placeholder="Indique el motivo del archivado..."></textarea>
+                </div>
+                <p style="margin-top: 15px; font-size: 0.9em; color: #6b7280;">El expediente será trasladado al archivo y podrá restaurarse posteriormente. Ninguna información será eliminada.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline" onclick="document.getElementById('modalArchivarTrabajador').classList.remove('show')">Cancelar</button>
+                <button type="button" class="btn btn-primary" id="btnConfirmarArchivarTrabajador">Archivar expediente</button>
+            </div>
         </div>
     </div>
 
