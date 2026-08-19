@@ -826,7 +826,7 @@
         const defaultProfileSVG = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%239ca3af"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z"/></svg>`;
 
         // Variables para filtrado
-        let filtrosTrabajadores = { busqueda: '', departamento: '', estadoLaboral: '', estadoMedico: '' };
+        let filtrosTrabajadores = { busqueda: '', departamento: '', estadoLaboral: '', estadoMedico: '', archivo: 'activos' };
 
         function renderizarTarjetasTrabajadores() {
             const grid = document.getElementById('trabajadoresGrid');
@@ -858,7 +858,15 @@
                 const cumpleEstadoMedico = filtrosTrabajadores.estadoMedico === '' ||
                                    semaforo.color === filtrosTrabajadores.estadoMedico;
 
-                return cumpleBusqueda && cumpleDepto && cumpleEstadoLaboral && cumpleEstadoMedico;
+                const estaArchivado = t.archivado === true;
+                let cumpleArchivo = true;
+                if (filtrosTrabajadores.archivo === 'activos') {
+                    cumpleArchivo = !estaArchivado;
+                } else if (filtrosTrabajadores.archivo === 'archivados') {
+                    cumpleArchivo = estaArchivado;
+                }
+
+                return cumpleBusqueda && cumpleDepto && cumpleEstadoLaboral && cumpleEstadoMedico && cumpleArchivo;
             });
 
             if (filtrados.length === 0) {
@@ -877,11 +885,36 @@
                 if (estadoLaboralT === 'Activo') colorEstadoLaboral = 'badge-success';
                 else if (estadoLaboralT === 'Retirado') colorEstadoLaboral = 'badge-info';
 
+                const estaArchivado = t.archivado === true;
+
+                let actionButtonHtml = '';
+                let badgeArchivado = '';
+
+                if (estaArchivado) {
+                    badgeArchivado = `
+                        <div style="margin-bottom: 10px;">
+                            <span class="badge badge-info">📦 Archivado</span>
+                        </div>
+                    `;
+                    actionButtonHtml = `
+                        <button class="options-btn btn-restaurar-trabajador" data-id="${t.id}" title="Restaurar expediente" style="font-size: 1.2em; background: none; border: none; cursor: pointer;">
+                            ↩️
+                        </button>
+                    `;
+                } else {
+                    actionButtonHtml = `
+                        <button class="options-btn btn-archivar-trabajador" data-id="${t.id}" title="Archivar expediente" style="font-size: 1.2em; background: none; border: none; cursor: pointer;">
+                            📦
+                        </button>
+                    `;
+                }
+
                 const card = document.createElement('div');
                 card.className = 'worker-card';
                 card.innerHTML = `
                     <div class="worker-card-header">
                         <div class="worker-status-group">
+                            ${badgeArchivado}
                             <div>
                                 <span class="status-label">Estado laboral:</span>
                                 <span class="badge ${colorEstadoLaboral}">${estadoLaboralT}</span>
@@ -891,9 +924,7 @@
                                 <span class="badge badge-${semaforo.color}">${semaforo.texto}</span>
                             </div>
                         </div>
-                        <button class="options-btn btn-eliminar-trabajador" data-id="${t.id}" title="Eliminar Miembro">
-                            🗑️
-                        </button>
+                        ${actionButtonHtml}
                     </div>
 
                     <div class="worker-card-body">
@@ -922,12 +953,18 @@
                 });
             });
 
-            document.querySelectorAll('.btn-eliminar-trabajador').forEach(btn => {
+            document.querySelectorAll('.btn-archivar-trabajador').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const id = e.currentTarget.dataset.id;
+                    abrirModalArchivarTrabajador(id);
+                });
+            });
+
+            document.querySelectorAll('.btn-restaurar-trabajador').forEach(btn => {
                 btn.addEventListener('click', async (e) => {
                     const id = e.currentTarget.dataset.id;
-                    if(confirm('¿Eliminar definitivamente el expediente de este miembro?')) {
-                        await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'trabajadores', id));
-                        showToast('🗑️ Expediente eliminado');
+                    if(confirm('¿Desea restaurar este expediente al directorio activo?')) {
+                        await restaurarTrabajador(id);
                     }
                 });
             });
@@ -951,6 +988,11 @@
 
         document.getElementById('filterEstadoMedico').addEventListener('change', (e) => {
             filtrosTrabajadores.estadoMedico = e.target.value;
+            renderizarTarjetasTrabajadores();
+        });
+
+        document.getElementById('filterArchivo').addEventListener('change', (e) => {
+            filtrosTrabajadores.archivo = e.target.value;
             renderizarTarjetasTrabajadores();
         });
 
@@ -1084,10 +1126,78 @@
             document.getElementById('btnEditarPerfil').onclick = () => editarTrabajador(id);
         }
 
+        // --- ARCHIVAR TRABAJADOR ---
+        let trabajadorAArchivarId = null;
+        function abrirModalArchivarTrabajador(id) {
+            const t = cacheTrabajadores[id];
+            if (!t) return;
+            trabajadorAArchivarId = id;
+            document.getElementById('archivarTrabajadorNombre').textContent = `${t.nombres} ${t.apellidos}`;
+            document.getElementById('motivoArchivadoTrabajador').value = '';
+            document.getElementById('modalArchivarTrabajador').classList.add('show');
+        }
+
+        document.getElementById('btnConfirmarArchivarTrabajador').addEventListener('click', async () => {
+            if (!trabajadorAArchivarId) return;
+            const motivo = document.getElementById('motivoArchivadoTrabajador').value.trim();
+            if (motivo.length < 5) {
+                showToast('Ingrese un motivo válido para archivar el expediente.', 'error');
+                return;
+            }
+
+            try {
+                const btn = document.getElementById('btnConfirmarArchivarTrabajador');
+                btn.disabled = true;
+                btn.textContent = 'Archivando...';
+
+                await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'trabajadores', trabajadorAArchivarId), {
+                    archivado: true,
+                    fecha_archivado: new Date().toISOString(),
+                    motivo_archivado: motivo,
+                    archivado_por_uid: currentUser.uid,
+                    archivado_por_nombre: currentUserProfile?.nombre || 'Usuario'
+                });
+
+                showToast('✅ Expediente archivado correctamente');
+                document.getElementById('modalArchivarTrabajador').classList.remove('show');
+                trabajadorAArchivarId = null;
+                btn.disabled = false;
+                btn.textContent = 'Archivar expediente';
+            } catch (error) {
+                console.error("Error al archivar:", error);
+                showToast('No fue posible archivar el expediente.', 'error');
+                const btn = document.getElementById('btnConfirmarArchivarTrabajador');
+                btn.disabled = false;
+                btn.textContent = 'Archivar expediente';
+            }
+        });
+
+        // --- RESTAURAR TRABAJADOR ---
+        async function restaurarTrabajador(id) {
+            try {
+                await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'trabajadores', id), {
+                    archivado: false,
+                    fecha_restauracion: new Date().toISOString(),
+                    restaurado_por_uid: currentUser.uid,
+                    restaurado_por_nombre: currentUserProfile?.nombre || 'Usuario'
+                });
+                showToast('✅ Expediente restaurado correctamente');
+            } catch (error) {
+                console.error("Error al restaurar:", error);
+                showToast('No fue posible restaurar el expediente.', 'error');
+            }
+        }
+
+
         // --- EDITAR TRABAJADOR ---
         async function editarTrabajador(id) {
             const t = cacheTrabajadores[id];
             if(!t) return;
+
+            if (t.archivado === true) {
+                showToast('Debe restaurar el expediente antes de editarlo.', 'error');
+                return;
+            }
 
             document.getElementById('vista-b-trabajadores').style.display = 'none';
             document.getElementById('vista-c-perfil').style.display = 'none';
@@ -1258,6 +1368,7 @@
                     showToast('✅ Trabajador actualizado exitosamente');
                 } else {
                     trabajadorData.fechaCreacion = new Date().toISOString();
+                    trabajadorData.archivado = false;
                     await addDoc(coleccionTrabajadores, trabajadorData);
                     showToast('✅ Trabajador registrado exitosamente');
                 }
