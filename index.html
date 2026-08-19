@@ -281,6 +281,13 @@
                                     <option value="danger">🔴 Vencido</option>
                                     <option value="gray">⚪ Sin Registro</option>
                                 </select>
+                                <select id="filterAptitudOcupacional" class="form-control" style="width: auto;">
+                                    <option value="">Aptitud: Todas</option>
+                                    <option value="Apto">Apto</option>
+                                    <option value="Apto con restricciones">Apto con restricciones</option>
+                                    <option value="No apto temporalmente">No apto temporalmente</option>
+                                    <option value="Pendiente de evaluación">Pendiente de evaluación</option>
+                                </select>
                                 <select id="filterArchivo" class="form-control" style="width: auto;">
                                     <option value="activos">Expedientes activos</option>
                                     <option value="archivados">Expedientes archivados</option>
@@ -463,6 +470,35 @@
                                             </tbody>
                                         </table>
                                     </div>
+                                    <h3 class="mb-3 mt-4">Aptitud Ocupacional</h3>
+                                    <div class="grid-2">
+                                        <div class="form-group">
+                                            <label>Resultado</label>
+                                            <select id="t_aptitud_ocupacional" class="form-control">
+                                                <option value="Pendiente de evaluación">Pendiente de evaluación</option>
+                                                <option value="Apto">Apto</option>
+                                                <option value="Apto con restricciones">Apto con restricciones</option>
+                                                <option value="No apto temporalmente">No apto temporalmente</option>
+                                            </select>
+                                        </div>
+                                        <div class="form-group">
+                                            <label>Fecha de evaluación de aptitud</label>
+                                            <input type="date" id="t_aptitud_fecha" class="form-control" />
+                                        </div>
+                                        <div class="form-group">
+                                            <label>Vigencia hasta</label>
+                                            <input type="date" id="t_aptitud_vigencia" class="form-control" />
+                                        </div>
+                                        <div class="form-group" style="grid-column: span 2; display: none;" id="container_aptitud_restricciones">
+                                            <label>Restricciones aplicables *</label>
+                                            <textarea id="t_aptitud_restricciones" class="form-control" rows="2" placeholder="Describa las restricciones funcionales aplicables..."></textarea>
+                                        </div>
+                                        <div class="form-group" style="grid-column: span 2;">
+                                            <label>Observaciones de Aptitud</label>
+                                            <textarea id="t_aptitud_observaciones" class="form-control" rows="2" placeholder="Información funcional relacionada con la aptitud laboral..."></textarea>
+                                        </div>
+                                    </div>
+
                                     <div class="mt-4 flex-between">
                                         <button type="button" class="btn btn-outline btn-prev-step" data-prev="2">⬅️ Anterior</button>
                                         <button type="submit" class="btn btn-success" id="btnSubmitTrabajador">✅ Guardar Trabajador</button>
@@ -564,6 +600,36 @@
                                                 <tr><td colspan="4" style="text-align:center;">Sin registro de exámenes</td></tr>
                                             </tbody>
                                         </table>
+                                    </div>
+                                </section>
+
+                                <!-- Aptitud Ocupacional -->
+                                <section class="dossier-card">
+                                    <div class="dossier-card-header">
+                                        <span class="material-symbols-outlined">health_and_safety</span>
+                                        <h3>Aptitud Ocupacional</h3>
+                                    </div>
+                                    <div class="dossier-card-body dossier-grid-2-col">
+                                        <div class="dossier-field">
+                                            <p class="dossier-field-label">Resultado</p>
+                                            <p class="dossier-field-value" id="p_aptitud_ocupacional">-</p>
+                                        </div>
+                                        <div class="dossier-field">
+                                            <p class="dossier-field-label">Fecha de evaluación</p>
+                                            <p class="dossier-field-value" id="p_aptitud_fecha">-</p>
+                                        </div>
+                                        <div class="dossier-field">
+                                            <p class="dossier-field-label">Vigencia hasta</p>
+                                            <p class="dossier-field-value" id="p_aptitud_vigencia">-</p>
+                                        </div>
+                                        <div class="dossier-field">
+                                            <p class="dossier-field-label">Observaciones</p>
+                                            <p class="dossier-field-value" id="p_aptitud_observaciones">-</p>
+                                        </div>
+                                        <div class="dossier-field" style="grid-column: span 2;" id="container_p_aptitud_restricciones">
+                                            <p class="dossier-field-label">Restricciones aplicables</p>
+                                            <p class="dossier-field-value" id="p_aptitud_restricciones">-</p>
+                                        </div>
                                     </div>
                                 </section>
 
