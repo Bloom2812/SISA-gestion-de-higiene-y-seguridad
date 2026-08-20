@@ -1,6 +1,6 @@
 import test, { after, beforeEach } from 'node:test';
 import { assertFails, assertSucceeds, initializeTestEnvironment } from '@firebase/rules-unit-testing';
-import { deleteDoc, doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
+import { deleteDoc, doc, getDoc, serverTimestamp, setDoc, Timestamp, updateDoc } from 'firebase/firestore';
 import { readFileSync } from 'node:fs';
 
 const PROJECT_ID = 'demo-sisa';
@@ -25,13 +25,51 @@ async function sembrarDatos() {
     await setDoc(doc(db, ruta('trabajadores', 'trabajador-1')), {
       nombres: 'Persona', apellidos: 'Prueba', estado_laboral: 'Activo'
     });
+    await setDoc(doc(db, ruta('areas', 'mantenimiento')), {
+      nombre: 'Mantenimiento'
+    });
+    await setDoc(doc(db, ruta('areas', 'produccion')), {
+      nombre: 'Producción'
+    });
     await setDoc(doc(db, ruta('salud_clinica', 'trabajador-1')), {
       trabajador_id: 'trabajador-1', alergias: ['Prueba']
     });
     await setDoc(doc(db, ruta('aptitudes_ocupacionales', 'trabajador-1')), {
       trabajador_id: 'trabajador-1', aptitud_ocupacional: 'Apto'
     });
+    await setDoc(doc(db, ruta('incidentes', 'incidente-semilla')), {
+      codigo: 'INC-2026-0001',
+      tipo: 'Incidente',
+      fecha_evento: Timestamp.fromDate(new Date('2026-08-20T14:00:00Z')),
+      area_id: 'mantenimiento',
+      area_nombre: 'Mantenimiento',
+      descripcion: 'Contacto menor con una guarda sin lesión reportada.',
+      gravedad: 'Baja',
+      estado: 'Reportado',
+      reportado_por: 'hs',
+      fecha_creacion: Timestamp.fromDate(new Date('2026-08-20T14:10:00Z')),
+      ultima_actualizacion: Timestamp.fromDate(new Date('2026-08-20T14:10:00Z'))
+    });
   });
+}
+
+function incidenteValido(uid, codigo = 'INC-2026-0002') {
+  return {
+    codigo,
+    tipo: 'Cuasi accidente',
+    fecha_evento: Timestamp.fromDate(new Date('2026-08-20T15:00:00Z')),
+    area_id: 'produccion',
+    area_nombre: 'Producción',
+    lugar_especifico: 'Pasillo de acceso',
+    trabajador_id: 'trabajador-1',
+    descripcion: 'Objeto detectado en zona de paso antes de provocar una caída.',
+    acciones_inmediatas: 'Se retiró el objeto y se delimitó temporalmente el área.',
+    gravedad: 'Media',
+    estado: 'Reportado',
+    reportado_por: uid,
+    fecha_creacion: serverTimestamp(),
+    ultima_actualizacion: serverTimestamp()
+  };
 }
 
 test.before(async () => {
@@ -117,6 +155,156 @@ test('historial permite crear, pero impide modificar y eliminar', async () => {
   await assertSucceeds(setDoc(ref, { tipo_evento: 'APTITUD_OCUPACIONAL', titulo: 'Prueba' }));
   await assertFails(updateDoc(ref, { titulo: 'Alterado' }));
   await assertFails(deleteDoc(ref));
+});
+
+test('usuarios con perfil pueden consultar incidentes operacionales', async () => {
+  for (const uid of ['admin', 'medico', 'hs', 'gerencia', 'supervisor', 'trabajador']) {
+    await assertSucceeds(getDoc(doc(dbDe(uid), ruta('incidentes', 'incidente-semilla'))));
+  }
+});
+
+test('usuario no autenticado no puede consultar incidentes', async () => {
+  const db = env.unauthenticatedContext().firestore();
+  await assertFails(getDoc(doc(db, ruta('incidentes', 'incidente-semilla'))));
+});
+
+test('Administrador y Responsable H&S pueden registrar un incidente válido', async () => {
+  await assertSucceeds(setDoc(
+    doc(dbDe('admin'), ruta('incidentes', 'incidente-admin')),
+    incidenteValido('admin', 'INC-2026-0002')
+  ));
+  await assertSucceeds(setDoc(
+    doc(dbDe('hs'), ruta('incidentes', 'incidente-hs')),
+    incidenteValido('hs', 'INC-2026-0003')
+  ));
+});
+
+for (const [uid, rol] of [
+  ['medico', 'Médico Ocupacional'],
+  ['gerencia', 'Gerencia'],
+  ['supervisor', 'Supervisor'],
+  ['trabajador', 'Trabajador']
+]) {
+  test(`${rol} no puede crear ni modificar incidentes`, async () => {
+    await assertFails(setDoc(
+      doc(dbDe(uid), ruta('incidentes', `incidente-${uid}`)),
+      incidenteValido(uid, `INC-2026-${uid}`)
+    ));
+    await assertFails(updateDoc(
+      doc(dbDe(uid), ruta('incidentes', 'incidente-semilla')),
+      { estado: 'En investigación', ultima_actualizacion: serverTimestamp() }
+    ));
+  });
+}
+
+test('un incidente rechaza tipos, estados y campos no autorizados', async () => {
+  await assertFails(setDoc(
+    doc(dbDe('hs'), ruta('incidentes', 'incidente-tipo-invalido')),
+    { ...incidenteValido('hs', 'INC-2026-0004'), tipo: 'Lesión clínica' }
+  ));
+  await assertFails(setDoc(
+    doc(dbDe('hs'), ruta('incidentes', 'incidente-estado-invalido')),
+    { ...incidenteValido('hs', 'INC-2026-0005'), estado: 'Eliminado' }
+  ));
+  await assertFails(setDoc(
+    doc(dbDe('hs'), ruta('incidentes', 'incidente-dato-clinico')),
+    { ...incidenteValido('hs', 'INC-2026-0006'), diagnostico_medico: 'Dato no permitido' }
+  ));
+});
+
+test('un incidente rechaza referencias inexistentes y fechas futuras', async () => {
+  await assertFails(setDoc(
+    doc(dbDe('hs'), ruta('incidentes', 'incidente-area-invalida')),
+    { ...incidenteValido('hs', 'INC-2026-0007'), area_id: 'area-inexistente' }
+  ));
+  await assertFails(setDoc(
+    doc(dbDe('hs'), ruta('incidentes', 'incidente-trabajador-invalido')),
+    { ...incidenteValido('hs', 'INC-2026-0008'), trabajador_id: 'trabajador-inexistente' }
+  ));
+  await assertFails(setDoc(
+    doc(dbDe('hs'), ruta('incidentes', 'incidente-fecha-futura')),
+    {
+      ...incidenteValido('hs', 'INC-2026-0009'),
+      fecha_evento: Timestamp.fromDate(new Date('2099-01-01T00:00:00Z'))
+    }
+  ));
+});
+
+test('un expediente nuevo debe iniciar en estado Reportado', async () => {
+  await assertFails(setDoc(
+    doc(dbDe('hs'), ruta('incidentes', 'incidente-estado-inicial')),
+    { ...incidenteValido('hs', 'INC-2026-0010'), estado: 'Cerrado' }
+  ));
+});
+
+test('el código, autor y fecha de creación del incidente son inmutables', async () => {
+  const ref = doc(dbDe('hs'), ruta('incidentes', 'incidente-semilla'));
+  await assertFails(updateDoc(ref, {
+    codigo: 'INC-ALTERADO',
+    ultima_actualizacion: serverTimestamp()
+  }));
+  await assertFails(updateDoc(ref, {
+    reportado_por: 'admin',
+    ultima_actualizacion: serverTimestamp()
+  }));
+  await assertFails(updateDoc(ref, {
+    fecha_creacion: serverTimestamp(),
+    ultima_actualizacion: serverTimestamp()
+  }));
+});
+
+test('Responsable H&S actualiza el estado sin alterar identidad ni creación', async () => {
+  await assertSucceeds(updateDoc(
+    doc(dbDe('hs'), ruta('incidentes', 'incidente-semilla')),
+    { estado: 'En investigación', ultima_actualizacion: serverTimestamp() }
+  ));
+});
+
+test('el flujo impide saltos de estado y bloquea expedientes cerrados', async () => {
+  const ref = doc(dbDe('hs'), ruta('incidentes', 'incidente-semilla'));
+  await assertFails(updateDoc(ref, {
+    estado: 'Cerrado',
+    ultima_actualizacion: serverTimestamp()
+  }));
+
+  await env.withSecurityRulesDisabled(async context => {
+    await updateDoc(doc(context.firestore(), ruta('incidentes', 'incidente-semilla')), {
+      estado: 'Cerrado'
+    });
+  });
+
+  await assertFails(updateDoc(ref, {
+    descripcion: 'Intento de alterar un expediente que ya fue cerrado.',
+    ultima_actualizacion: serverTimestamp()
+  }));
+});
+
+test('ningún rol puede eliminar un incidente', async () => {
+  for (const uid of ['admin', 'hs', 'gerencia', 'supervisor', 'trabajador']) {
+    await assertFails(deleteDoc(doc(dbDe(uid), ruta('incidentes', 'incidente-semilla'))));
+  }
+});
+
+test('historial de incidentes es append-only y registra al usuario autenticado', async () => {
+  const ref = doc(dbDe('hs'), `${ruta('incidentes', 'incidente-semilla')}/historial/evento-1`);
+  await assertSucceeds(setDoc(ref, {
+    tipo_evento: 'CAMBIO_ESTADO',
+    descripcion: 'El expediente pasó a investigación.',
+    usuario_id: 'hs',
+    fecha: serverTimestamp()
+  }));
+  await assertFails(updateDoc(ref, { descripcion: 'Contenido alterado' }));
+  await assertFails(deleteDoc(ref));
+
+  await assertFails(setDoc(
+    doc(dbDe('hs'), `${ruta('incidentes', 'incidente-semilla')}/historial/evento-2`),
+    {
+      tipo_evento: 'ACTUALIZACION',
+      descripcion: 'Intento con autor diferente.',
+      usuario_id: 'admin',
+      fecha: serverTimestamp()
+    }
+  ));
 });
 
 test('colección no declarada permanece cerrada', async () => {
