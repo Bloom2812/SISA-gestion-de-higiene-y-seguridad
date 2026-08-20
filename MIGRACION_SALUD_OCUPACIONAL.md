@@ -50,3 +50,10 @@ await migrarSaludLegacy(db, {
 ```
 
 Este archivo no está conectado automáticamente a la aplicación principal.
+
+## Interfaz controlada
+
+La interfaz permite auditar en `DRY_RUN` y, posteriormente, migrar un solo ID
+devuelto por el último reporte. La escritura individual exige confirmar el ID
+exacto, vuelve a ejecutar el `DRY_RUN` después de la operación y nunca elimina
+los campos legacy.
