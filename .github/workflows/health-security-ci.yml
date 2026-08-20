@@ -44,6 +44,7 @@ jobs:
           bash test_firestore_rules_security.sh
           bash test_ui_health_permissions.sh
           bash test_migracion_salud.sh
+          bash test_auditoria_migracion_salud.sh
           bash test_xss_salud.sh
 
       - name: Ejecutar Firebase Emulator

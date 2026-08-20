@@ -294,7 +294,16 @@
                                     <option value="todos">Todos los expedientes</option>
                                 </select>
                                 <button class="btn btn-success" id="btnNuevoTrabajador">➕ Registrar Miembro</button>
+                                <button class="btn btn-outline" id="btnAuditarMigracionSalud" style="display:none;">🔎 Auditar migración (solo lectura)</button>
                             </div>
+                        </div>
+
+                        <div class="card mb-4" id="resultadoAuditoriaSalud" style="display:none;">
+                            <h3>Auditoría de migración de Salud Ocupacional</h3>
+                            <p style="color:#6b7280; margin:8px 0 16px;">
+                                Resultado informativo en modo DRY_RUN. Esta operación no crea, modifica ni elimina documentos.
+                            </p>
+                            <pre id="auditoriaSaludSalida" style="white-space:pre-wrap; overflow:auto; background:#111827; color:#e5e7eb; padding:16px; border-radius:8px;"></pre>
                         </div>
 
                         <div class="grid-cards" id="trabajadoresGrid">

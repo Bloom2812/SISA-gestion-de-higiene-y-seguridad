@@ -2,6 +2,7 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, collection, addDoc, onSnapshot, deleteDoc, doc, updateDoc, setDoc, query, where, getDocs, getDoc, writeBatch, serverTimestamp, orderBy } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { migrarSaludLegacy } from "./scripts/migrar-salud-legacy.js";
 
         // ==========================================================
         // ⚠️ PEGA AQUÍ TU CONFIGURACIÓN DE FIREBASE ⚠️
@@ -81,11 +82,18 @@
             const seccionAptitud = document.getElementById('seccionEdicionAptitud');
             const perfilClinico = document.getElementById('seccionPerfilClinico');
             const observacionesClinicas = document.getElementById('perfilAptitudObservaciones');
+            const botonAuditoria = document.getElementById('btnAuditarMigracionSalud');
+            const resultadoAuditoria = document.getElementById('resultadoAuditoriaSalud');
 
             if (botonPasoMedico) botonPasoMedico.style.display = esMedico ? '' : 'none';
             if (seccionAptitud) seccionAptitud.style.display = esMedico ? '' : 'none';
             if (perfilClinico) perfilClinico.style.display = esMedico ? '' : 'none';
             if (observacionesClinicas) observacionesClinicas.style.display = esMedico ? '' : 'none';
+            if (botonAuditoria) botonAuditoria.style.display = esMedico ? '' : 'none';
+            if (resultadoAuditoria && !esMedico) {
+                resultadoAuditoria.style.display = 'none';
+                document.getElementById('auditoriaSaludSalida').textContent = '';
+            }
 
             if (botonPasoExamenes) {
                 botonPasoExamenes.textContent = esResponsableHS ? '2. Exámenes y EPP' : '3. Exámenes y EPP';
@@ -709,6 +717,38 @@
         let t_alergias_array = [];
         let t_condiciones_array = [];
         let t_examenes_array = [];
+
+        document.getElementById('btnAuditarMigracionSalud').addEventListener('click', async () => {
+            if (!esMedicoOcupacional()) {
+                showToast('Solo el Médico Ocupacional puede ejecutar esta auditoría.', 'error');
+                return;
+            }
+
+            const btn = document.getElementById('btnAuditarMigracionSalud');
+            const panel = document.getElementById('resultadoAuditoriaSalud');
+            const salida = document.getElementById('auditoriaSaludSalida');
+
+            btn.disabled = true;
+            btn.textContent = '⏳ Auditando...';
+            panel.style.display = 'block';
+            salida.textContent = 'Consultando datos en modo de solo lectura...';
+
+            try {
+                const reporte = await migrarSaludLegacy(db, { dryRun: true });
+                salida.textContent = JSON.stringify(reporte, null, 2);
+                showToast('✅ Auditoría DRY_RUN finalizada sin escrituras');
+            } catch (error) {
+                console.error('Error en auditoría DRY_RUN:', error);
+                salida.textContent = JSON.stringify({
+                    modo: 'DRY_RUN',
+                    error: error?.message || String(error)
+                }, null, 2);
+                showToast('No fue posible completar la auditoría DRY_RUN.', 'error');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '🔎 Auditar migración (solo lectura)';
+            }
+        });
 
         // Funciones para poblar Select de Áreas
         async function poblarSelectAreas() {
