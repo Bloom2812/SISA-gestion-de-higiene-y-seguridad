@@ -38,6 +38,7 @@
             'Administrador',
             'Gerencia',
             'Responsable H&S',
+            'Médico Ocupacional',
             'Supervisor',
             'Trabajador'
         ];
@@ -47,25 +48,47 @@
         // ============================================================
         function aplicarPermisosInterfaz() {
             const navConfiguracion = document.getElementById('navConfiguracion');
-            if (!navConfiguracion) return;
+            const navSalud = document.getElementById('navSaludOcupacional');
+            if (!navConfiguracion || !navSalud) return;
 
-            if (currentUserProfile && currentUserProfile.rol === 'Administrador') {
-                navConfiguracion.style.display = '';
-            } else {
-                navConfiguracion.style.display = 'none';
+            const rol = currentUserProfile?.rol;
+            const puedeAccederSalud = ['Médico Ocupacional', 'Responsable H&S'].includes(rol);
 
-                // Si la página actual es configuración (heredada de otra sesión), enviar al dashboard
-                const pageConfiguracion = document.getElementById('page-configuracion');
-                if (pageConfiguracion && pageConfiguracion.classList.contains('active')) {
-                    // Remover active de configuracion
-                    pageConfiguracion.classList.remove('active');
-                    navConfiguracion.classList.remove('active');
+            navConfiguracion.style.display = rol === 'Administrador' ? '' : 'none';
+            navSalud.style.display = puedeAccederSalud ? '' : 'none';
 
-                    // Activar dashboard
-                    document.getElementById('page-dashboard').classList.add('active');
-                    const navDashboard = document.querySelector('.nav-item[data-page="dashboard"]');
-                    if (navDashboard) navDashboard.classList.add('active');
-                }
+            const paginaRestringidaActiva =
+                (document.getElementById('page-configuracion')?.classList.contains('active') && rol !== 'Administrador')
+                || (document.getElementById('page-salud')?.classList.contains('active') && !puedeAccederSalud);
+
+            if (paginaRestringidaActiva) {
+                document.querySelectorAll('.page').forEach(page => page.classList.remove('active'));
+                document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
+                document.getElementById('page-dashboard').classList.add('active');
+                document.querySelector('.nav-item[data-page="dashboard"]')?.classList.add('active');
+            }
+
+            aplicarPermisosSalud();
+        }
+
+        function aplicarPermisosSalud() {
+            const rol = currentUserProfile?.rol;
+            const esMedico = rol === 'Médico Ocupacional';
+            const esResponsableHS = rol === 'Responsable H&S';
+
+            const botonPasoMedico = document.getElementById('wizardBtnDatosMedicos');
+            const botonPasoExamenes = document.getElementById('wizardBtnExamenes');
+            const seccionAptitud = document.getElementById('seccionEdicionAptitud');
+            const perfilClinico = document.getElementById('seccionPerfilClinico');
+            const observacionesClinicas = document.getElementById('perfilAptitudObservaciones');
+
+            if (botonPasoMedico) botonPasoMedico.style.display = esMedico ? '' : 'none';
+            if (seccionAptitud) seccionAptitud.style.display = esMedico ? '' : 'none';
+            if (perfilClinico) perfilClinico.style.display = esMedico ? '' : 'none';
+            if (observacionesClinicas) observacionesClinicas.style.display = esMedico ? '' : 'none';
+
+            if (botonPasoExamenes) {
+                botonPasoExamenes.textContent = esResponsableHS ? '2. Exámenes y EPP' : '3. Exámenes y EPP';
             }
         }
 
@@ -117,6 +140,22 @@
                 toast.style.transition = 'opacity 0.3s';
                 setTimeout(() => toast.remove(), 300);
             }, 3000);
+        }
+
+        function escapeHtml(valor) {
+            return String(valor ?? '')
+                .replaceAll('&', '&amp;')
+                .replaceAll('<', '&lt;')
+                .replaceAll('>', '&gt;')
+                .replaceAll('"', '&quot;')
+                .replaceAll("'", '&#039;');
+        }
+
+        function urlImagenSegura(valor) {
+            const url = String(valor ?? '').trim();
+            if (/^data:image\/(jpeg|png|webp);base64,[a-z0-9+/=\s]+$/i.test(url)) return url;
+            if (/^https:\/\//i.test(url)) return url;
+            return '';
         }
 
         // ============================================================
@@ -194,8 +233,17 @@
                     // Iniciar la escucha de datos
                     iniciarSuscripcionRiesgos();
                     iniciarSuscripcionAreas();
-                    iniciarSuscripcionTrabajadores();
-                    iniciarSuscripcionExamenesMedicos();
+                    if (['Médico Ocupacional', 'Responsable H&S'].includes(currentUserProfile.rol)) {
+                        iniciarSuscripcionTrabajadores();
+                        iniciarSuscripcionExamenesMedicos();
+                        iniciarSuscripcionAptitudesOcupacionales();
+
+                        if (esMedicoOcupacional()) {
+                            iniciarSuscripcionSaludClinica();
+                        } else {
+                            saludClinicaCargada = true;
+                        }
+                    }
 
                     if (currentUserProfile.rol === 'Administrador') {
                         iniciarSuscripcionUsuarios();
@@ -230,12 +278,20 @@
                 if(unsubscribeAreas) unsubscribeAreas();
                 if(unsubscribeTrabajadores) unsubscribeTrabajadores();
                 if(unsubscribeExamenesMedicos) unsubscribeExamenesMedicos();
+                if(unsubscribeSaludClinica) unsubscribeSaludClinica();
+                if(unsubscribeAptitudesOcupacionales) unsubscribeAptitudesOcupacionales();
 
                 unsubscribeRiesgos = null;
                 unsubscribeUsuarios = null;
                 unsubscribeAreas = null;
                 unsubscribeTrabajadores = null;
                 unsubscribeExamenesMedicos = null;
+                unsubscribeSaludClinica = null;
+                unsubscribeAptitudesOcupacionales = null;
+                cacheTrabajadoresBase = {};
+                cacheSaludClinica = {};
+                cacheAptitudesOcupacionales = {};
+                cacheExamenesPorTrabajador = {};
             }
         });
 
@@ -596,8 +652,47 @@
         let unsubscribeTrabajadores = null;
 
         const coleccionExamenesMedicos = collection(db, 'artifacts', appId, 'public', 'data', 'examenes_medicos');
+        const coleccionSaludClinica = collection(db, 'artifacts', appId, 'public', 'data', 'salud_clinica');
+        const coleccionAptitudesOcupacionales = collection(db, 'artifacts', appId, 'public', 'data', 'aptitudes_ocupacionales');
+
         let unsubscribeExamenesMedicos = null;
+        let unsubscribeSaludClinica = null;
+        let unsubscribeAptitudesOcupacionales = null;
+
         let cacheExamenesPorTrabajador = {};
+        let cacheTrabajadoresBase = {};
+        let cacheSaludClinica = {};
+        let cacheAptitudesOcupacionales = {};
+
+        function esMedicoOcupacional() {
+            return currentUserProfile?.rol === 'Médico Ocupacional';
+        }
+
+        function reconstruirCacheTrabajadores() {
+            cacheTrabajadores = {};
+
+            Object.entries(cacheTrabajadoresBase).forEach(([id, base]) => {
+                const trabajador = { ...base, id };
+
+                if (esMedicoOcupacional()) {
+                    Object.assign(trabajador, cacheSaludClinica[id] || {});
+                } else {
+                    // Evita mostrar campos clínicos heredados al Responsable H&S.
+                    [
+                        'tipo_sangre',
+                        'alergias',
+                        'condiciones_medicas',
+                        'emergencia_contacto_nombre',
+                        'emergencia_contacto_parentesco',
+                        'emergencia_contacto_telefono',
+                        'aptitud_observaciones'
+                    ].forEach(campo => delete trabajador[campo]);
+                }
+
+                Object.assign(trabajador, cacheAptitudesOcupacionales[id] || {});
+                cacheTrabajadores[id] = trabajador;
+            });
+        }
 
         function obtenerExamenesTrabajador(t) {
             const nuevos = cacheExamenesPorTrabajador[t.id] || [];
@@ -656,6 +751,7 @@
             });
 
             await poblarSelectAreas();
+            aplicarPermisosSalud();
             mostrarPasoWizard(1);
         });
 
@@ -689,10 +785,9 @@
 
         document.querySelectorAll('.btn-next-step').forEach(btn => {
             btn.addEventListener('click', (e) => {
-                const nextStep = e.currentTarget.dataset.next;
-                const currentStep = parseInt(nextStep) - 1;
-
-                // Validación básica de HTML5 para el paso actual antes de avanzar
+                const requestedStep = parseInt(e.currentTarget.dataset.next);
+                const currentStep = requestedStep - 1;
+                const nextStep = currentUserProfile?.rol === 'Responsable H&S' && requestedStep === 2 ? 3 : requestedStep;
                 const currentDiv = document.getElementById(`wizard-step-${currentStep}`);
                 const inputsObligatorios = currentDiv.querySelectorAll('[required]');
                 let valido = true;
@@ -701,10 +796,8 @@
                 });
 
                 if(valido) {
-                    // Enable the button for the next step so user can tab manually later
                     const nextStepBtn = document.querySelector(`.wizard-step-btn[data-step="${nextStep}"]`);
                     if(nextStepBtn) nextStepBtn.disabled = false;
-
                     mostrarPasoWizard(nextStep);
                 }
             });
@@ -712,7 +805,9 @@
 
         document.querySelectorAll('.btn-prev-step').forEach(btn => {
             btn.addEventListener('click', (e) => {
-                mostrarPasoWizard(e.currentTarget.dataset.prev);
+                const requestedStep = parseInt(e.currentTarget.dataset.prev);
+                const prevStep = currentUserProfile?.rol === 'Responsable H&S' && requestedStep === 2 ? 1 : requestedStep;
+                mostrarPasoWizard(prevStep);
             });
         });
 
@@ -763,7 +858,7 @@
             ulAlergias.innerHTML = '';
             t_alergias_array.forEach((alergia, index) => {
                 const li = document.createElement('li');
-                li.innerHTML = `${alergia} <button type="button" class="btn btn-sm btn-danger ml-2" onclick="window.removeAlergia(${index})">x</button>`;
+                li.innerHTML = `${escapeHtml(alergia)} <button type="button" class="btn btn-sm btn-danger ml-2" onclick="window.removeAlergia(${index})">x</button>`;
                 li.style.marginBottom = '5px';
                 ulAlergias.appendChild(li);
             });
@@ -773,7 +868,7 @@
             ulCondiciones.innerHTML = '';
             t_condiciones_array.forEach((condicion, index) => {
                 const li = document.createElement('li');
-                li.innerHTML = `${condicion} <button type="button" class="btn btn-sm btn-danger ml-2" onclick="window.removeCondicion(${index})">x</button>`;
+                li.innerHTML = `${escapeHtml(condicion)} <button type="button" class="btn btn-sm btn-danger ml-2" onclick="window.removeCondicion(${index})">x</button>`;
                 li.style.marginBottom = '5px';
                 ulCondiciones.appendChild(li);
             });
@@ -791,9 +886,9 @@
                         : `<span class="badge badge-info">Registrado</span>`;
 
                     tr.innerHTML = `
-                        <td>${ex.tipo}</td>
-                        <td>${ex.realizacion}</td>
-                        <td>${ex.vencimiento}</td>
+                        <td>${escapeHtml(ex.tipo)}</td>
+                        <td>${escapeHtml(ex.realizacion)}</td>
+                        <td>${escapeHtml(ex.vencimiento)}</td>
                         <td>${accionHtml}</td>
                     `;
                     tbodyExamenes.appendChild(tr);
@@ -944,7 +1039,7 @@
                 const examenes = obtenerExamenesTrabajador(t);
                 const semaforo = evaluarSemaforoMedico(examenes);
                 const fotoHtml = t.fotografia_url ?
-                    `<img src="${t.fotografia_url}" alt="Foto de ${t.nombres}">` :
+                    `<img src="${escapeHtml(urlImagenSegura(t.fotografia_url))}" alt="Foto de ${escapeHtml(t.nombres)}">` :
                     `<div class="avatar-placeholder">👤</div>`;
 
                 const estadoLaboralT = t.estado_laboral || 'No definido';
@@ -971,13 +1066,13 @@
                         </div>
                     `;
                     actionButtonHtml = `
-                        <button class="options-btn btn-restaurar-trabajador" data-id="${t.id}" title="Restaurar expediente" style="font-size: 1.2em; background: none; border: none; cursor: pointer;">
+                        <button class="options-btn btn-restaurar-trabajador" data-id="${escapeHtml(t.id)}" title="Restaurar expediente" style="font-size: 1.2em; background: none; border: none; cursor: pointer;">
                             ↩️
                         </button>
                     `;
                 } else {
                     actionButtonHtml = `
-                        <button class="options-btn btn-archivar-trabajador" data-id="${t.id}" title="Archivar expediente" style="font-size: 1.2em; background: none; border: none; cursor: pointer;">
+                        <button class="options-btn btn-archivar-trabajador" data-id="${escapeHtml(t.id)}" title="Archivar expediente" style="font-size: 1.2em; background: none; border: none; cursor: pointer;">
                             📦
                         </button>
                     `;
@@ -991,15 +1086,15 @@
                             ${badgeArchivado}
                             <div>
                                 <span class="status-label">Estado laboral:</span>
-                                <span class="badge ${colorEstadoLaboral}">${estadoLaboralT}</span>
+                                <span class="badge ${colorEstadoLaboral}">${escapeHtml(estadoLaboralT)}</span>
                             </div>
                             <div>
                                 <span class="status-label">Vigilancia médica:</span>
-                                <span class="badge badge-${semaforo.color}">${semaforo.texto}</span>
+                                <span class="badge badge-${semaforo.color}">${escapeHtml(semaforo.texto)}</span>
                             </div>
                             <div>
                                 <span class="status-label">Aptitud ocupacional:</span>
-                                <span class="badge ${colorAptitudOcupacional}">${aptitudOcupacional}</span>
+                                <span class="badge ${colorAptitudOcupacional}">${escapeHtml(aptitudOcupacional)}</span>
                             </div>
                         </div>
                         ${actionButtonHtml}
@@ -1007,14 +1102,14 @@
 
                     <div class="worker-card-body">
                         ${fotoHtml}
-                        <h3>${t.nombres} ${t.apellidos}</h3>
-                        <div class="role">${t.puesto_trabajo}</div>
-                        <div class="dept">🏢 ${t.departamento}</div>
+                        <h3>${escapeHtml(t.nombres)} ${escapeHtml(t.apellidos)}</h3>
+                        <div class="role">${escapeHtml(t.puesto_trabajo)}</div>
+                        <div class="dept">🏢 ${escapeHtml(t.departamento)}</div>
                     </div>
 
                     <div class="worker-card-footer">
-                        <button class="btn-profile btn-ver-perfil" data-id="${t.id}">Perfil</button>
-                        <button class="btn-history btn-ver-historial" data-id="${t.id}">Historial</button>
+                        <button class="btn-profile btn-ver-perfil" data-id="${escapeHtml(t.id)}">Perfil</button>
+                        <button class="btn-history btn-ver-historial" data-id="${escapeHtml(t.id)}">Historial</button>
                     </div>
                 `;
                 grid.appendChild(card);
@@ -1101,9 +1196,12 @@
 
         let trabajadoresCargados = false;
         let examenesCargados = false;
+        let saludClinicaCargada = false;
+        let aptitudesCargadas = false;
 
         function renderizarTrabajadoresSiListo() {
-            if (trabajadoresCargados && examenesCargados) {
+            if (trabajadoresCargados && examenesCargados && saludClinicaCargada && aptitudesCargadas) {
+                reconstruirCacheTrabajadores();
                 renderizarTarjetasTrabajadores();
             }
         }
@@ -1114,12 +1212,12 @@
             actualizarSelectFiltroDepartamentos();
 
             unsubscribeTrabajadores = onSnapshot(coleccionTrabajadores, (snapshot) => {
-                cacheTrabajadores = {};
+                cacheTrabajadoresBase = {};
 
                 snapshot.forEach((docSnap) => {
                     const data = docSnap.data();
                     const id = docSnap.id;
-                    cacheTrabajadores[id] = { ...data, id };
+                    cacheTrabajadoresBase[id] = { ...data, id };
                 });
 
                 trabajadoresCargados = true;
@@ -1154,6 +1252,36 @@
 
             }, (error) => {
                 console.error("Error al cargar examenes medicos:", error);
+            });
+        }
+
+        function iniciarSuscripcionSaludClinica() {
+            if (!currentUser || !esMedicoOcupacional()) return;
+
+            unsubscribeSaludClinica = onSnapshot(coleccionSaludClinica, (snapshot) => {
+                cacheSaludClinica = {};
+                snapshot.forEach(docSnap => {
+                    cacheSaludClinica[docSnap.id] = docSnap.data();
+                });
+                saludClinicaCargada = true;
+                renderizarTrabajadoresSiListo();
+            }, (error) => {
+                console.error("Error al cargar información clínica:", error);
+            });
+        }
+
+        function iniciarSuscripcionAptitudesOcupacionales() {
+            if (!currentUser) return;
+
+            unsubscribeAptitudesOcupacionales = onSnapshot(coleccionAptitudesOcupacionales, (snapshot) => {
+                cacheAptitudesOcupacionales = {};
+                snapshot.forEach(docSnap => {
+                    cacheAptitudesOcupacionales[docSnap.id] = docSnap.data();
+                });
+                aptitudesCargadas = true;
+                renderizarTrabajadoresSiListo();
+            }, (error) => {
+                console.error("Error al cargar aptitudes ocupacionales:", error);
             });
         }
 
@@ -1216,9 +1344,9 @@
                             descriptionHtml = `Expediente ocupacional registrado.<br>`;
                             if (evento.detalle) {
                                 descriptionHtml += `<div class="timeline-detail">
-                                    Área: ${evento.detalle.departamento || '-'} / Puesto: ${evento.detalle.puesto_trabajo || '-'}<br>
-                                    Estado: ${evento.detalle.estado_laboral || '-'}<br>
-                                    Aptitud: ${evento.detalle.aptitud_ocupacional || '-'}
+                                    Área: ${escapeHtml(evento.detalle.departamento || '-')} / Puesto: ${escapeHtml(evento.detalle.puesto_trabajo || '-')}<br>
+                                    Estado: ${escapeHtml(evento.detalle.estado_laboral || '-')}<br>
+                                    Aptitud: ${escapeHtml(evento.detalle.aptitud_ocupacional || '-')}
                                 </div>`;
                             }
                             break;
@@ -1228,7 +1356,7 @@
                             const dPuesto = evento.detalle.puesto_anterior !== evento.detalle.puesto_nuevo;
 
                             if (dArea && dPuesto) {
-                                descriptionHtml = `Área: ${evento.detalle.area_anterior} → <strong>${evento.detalle.area_nueva}</strong><br>Puesto: ${evento.detalle.puesto_anterior} → <strong>${evento.detalle.puesto_nuevo}</strong>`;
+                                descriptionHtml = `Área: ${escapeHtml(evento.detalle.area_anterior)} → <strong>${escapeHtml(evento.detalle.area_nueva)}</strong><br>Puesto: ${escapeHtml(evento.detalle.puesto_anterior)} → <strong>${escapeHtml(evento.detalle.puesto_nuevo)}</strong>`;
                             } else if (dArea) {
                                 descriptionHtml = `Área: ${evento.detalle.area_anterior} → <strong>${evento.detalle.area_nueva}</strong>`;
                             } else if (dPuesto) {
@@ -1239,18 +1367,18 @@
                             break;
                         case 'CAMBIO_ESTADO_LABORAL':
                             icon = '💼';
-                            descriptionHtml = `Estado laboral: ${evento.detalle.anterior} → <strong>${evento.detalle.nuevo}</strong>`;
+                            descriptionHtml = `Estado laboral: ${escapeHtml(evento.detalle.anterior)} → <strong>${escapeHtml(evento.detalle.nuevo)}</strong>`;
                             break;
                         case 'APTITUD_OCUPACIONAL':
                             icon = '🩺';
-                            descriptionHtml = `Aptitud: ${evento.detalle.aptitud_anterior || '-'} → <strong>${evento.detalle.aptitud_nueva || '-'}</strong>`;
+                            descriptionHtml = `Aptitud: ${escapeHtml(evento.detalle.aptitud_anterior || '-')} → <strong>${escapeHtml(evento.detalle.aptitud_nueva || '-')}</strong>`;
                             if (evento.detalle.restricciones) {
-                                descriptionHtml += `<div class="timeline-detail">Restricciones: ${evento.detalle.restricciones}</div>`;
+                                descriptionHtml += `<div class="timeline-detail">Restricciones: ${escapeHtml(evento.detalle.restricciones)}</div>`;
                             }
                             break;
                         case 'ARCHIVADO_EXPEDIENTE':
                             icon = '📦';
-                            descriptionHtml = `Expediente archivado.<div class="timeline-detail">Motivo: ${evento.detalle.motivo || '-'}</div>`;
+                            descriptionHtml = `Expediente archivado.<div class="timeline-detail">Motivo: ${escapeHtml(evento.detalle.motivo || '-')}</div>`;
                             break;
                         case 'RESTAURACION_EXPEDIENTE':
                             icon = '↩️';
@@ -1266,14 +1394,14 @@
                             <div class="timeline-marker">${icon}</div>
                             <div class="timeline-content">
                                 <div class="timeline-header">
-                                    <div class="timeline-title">${evento.titulo || 'Evento Ocupacional'}</div>
-                                    <div class="timeline-date">${formatFecha(evento.fecha_evento)}</div>
+                                    <div class="timeline-title">${escapeHtml(evento.titulo || 'Evento Ocupacional')}</div>
+                                    <div class="timeline-date">${escapeHtml(formatFecha(evento.fecha_evento))}</div>
                                 </div>
                                 <div class="timeline-detail">
                                     ${descriptionHtml}
                                 </div>
                                 <div class="timeline-user">
-                                    <span>Registrado por: ${evento.usuario_nombre} ${evento.usuario_rol ? `(${evento.usuario_rol})` : ''}</span>
+                                    <span>Registrado por: ${escapeHtml(evento.usuario_nombre || 'Usuario')} ${evento.usuario_rol ? `(${escapeHtml(evento.usuario_rol)})` : ''}</span>
                                 </div>
                             </div>
                         </div>
@@ -1329,8 +1457,8 @@
             const examenes = obtenerExamenesTrabajador(t);
             const semaforo = evaluarSemaforoMedico(examenes);
 
-            document.getElementById('p_estado_laboral').innerHTML = `<span class="badge ${colorEstadoLaboral}">${estadoLaboralT}</span>`;
-            document.getElementById('p_estado_vigilancia_medica').innerHTML = `<span class="badge badge-${semaforo.color}">${semaforo.texto}</span>`;
+            document.getElementById('p_estado_laboral').innerHTML = `<span class="badge ${colorEstadoLaboral}">${escapeHtml(estadoLaboralT)}</span>`;
+            document.getElementById('p_estado_vigilancia_medica').innerHTML = `<span class="badge badge-${semaforo.color}">${escapeHtml(semaforo.texto)}</span>`;
 
             // Tarjetas medias
             document.getElementById('p_alergias').textContent = t.alergias && t.alergias.length > 0 ? t.alergias.join(', ') : 'Ninguna';
@@ -1366,9 +1494,9 @@
 
                     const tr = document.createElement('tr');
                     tr.innerHTML = `
-                        <td>${ex.tipo}</td>
-                        <td>${ex.realizacion}</td>
-                        <td>${ex.vencimiento}</td>
+                        <td>${escapeHtml(ex.tipo)}</td>
+                        <td>${escapeHtml(ex.realizacion)}</td>
+                        <td>${escapeHtml(ex.vencimiento)}</td>
                         <td>${badge}</td>
                     `;
                     tbody.appendChild(tr);
@@ -1382,7 +1510,7 @@
             else if (aptitudOcupacional === 'Apto con restricciones') colorAptitud = 'badge-warning';
             else if (aptitudOcupacional === 'No apto temporalmente') colorAptitud = 'badge-danger';
 
-            document.getElementById('p_aptitud_ocupacional').innerHTML = `<span class="badge ${colorAptitud}">${aptitudOcupacional}</span>`;
+            document.getElementById('p_aptitud_ocupacional').innerHTML = `<span class="badge ${colorAptitud}">${escapeHtml(aptitudOcupacional)}</span>`;
             document.getElementById('p_aptitud_fecha').textContent = t.aptitud_fecha || '-';
             document.getElementById('p_aptitud_vigencia').textContent = t.aptitud_vigencia || '-';
             document.getElementById('p_aptitud_observaciones').textContent = t.aptitud_observaciones || '-';
@@ -1541,6 +1669,7 @@
                 btn.disabled = false;
             });
 
+            aplicarPermisosSalud();
             mostrarPasoWizard(1);
         }
 
@@ -1684,25 +1813,32 @@
                     departamento: document.getElementById('t_departamento').value,
                     puesto_trabajo: document.getElementById('t_puesto').value,
                     estado_laboral: estadoLaboralVal,
+                    talla_ropa: document.getElementById('t_talla_ropa').value,
+                    talla_calzado: document.getElementById('t_talla_calzado').value,
+                    fechaActualizacion: new Date().toISOString()
+                };
 
+                const saludClinicaData = {
+                    trabajador_id: id || null,
                     tipo_sangre: document.getElementById('t_tipo_sangre').value,
                     alergias: t_alergias_array,
                     condiciones_medicas: t_condiciones_array,
-
                     emergencia_contacto_nombre: document.getElementById('t_emergencia_nombre').value,
                     emergencia_contacto_parentesco: document.getElementById('t_emergencia_parentesco').value,
                     emergencia_contacto_telefono: document.getElementById('t_emergencia_telefono').value,
+                    fechaActualizacion: serverTimestamp(),
+                    actualizado_por_uid: currentUser?.uid || null
+                };
 
-                    talla_ropa: document.getElementById('t_talla_ropa').value,
-                    talla_calzado: document.getElementById('t_talla_calzado').value,
-
+                const aptitudData = {
+                    trabajador_id: id || null,
                     aptitud_ocupacional: aptitudOcupacional,
                     aptitud_fecha: aptitudFecha,
                     aptitud_vigencia: aptitudVigencia,
                     aptitud_restricciones: aptitudOcupacional === 'Apto con restricciones' ? aptitudRestricciones : '',
                     aptitud_observaciones: aptitudObservaciones,
-
-                    fechaActualizacion: new Date().toISOString()
+                    fechaActualizacion: serverTimestamp(),
+                    actualizado_por_uid: currentUser?.uid || null
                 };
 
                 if(fotoUrl) trabajadorData.fotografia_url = fotoUrl;
@@ -1715,6 +1851,8 @@
                     // Editar existente
                     const trabajadorRef = doc(db, 'artifacts', appId, 'public', 'data', 'trabajadores', id);
                     const historialRefBase = collection(trabajadorRef, 'historial_ocupacional');
+                    const saludClinicaRef = doc(coleccionSaludClinica, id);
+                    const aptitudRef = doc(coleccionAptitudesOcupacionales, id);
                     const oldT = cacheTrabajadores[id] || {};
 
                     // 1. CAMBIO_AREA_PUESTO
@@ -1739,23 +1877,28 @@
 
                     // 3. APTITUD_OCUPACIONAL
                     const aptitudCambiada =
-                        oldT.aptitud_ocupacional !== trabajadorData.aptitud_ocupacional ||
-                        oldT.aptitud_fecha !== trabajadorData.aptitud_fecha ||
-                        oldT.aptitud_vigencia !== trabajadorData.aptitud_vigencia ||
-                        oldT.aptitud_restricciones !== trabajadorData.aptitud_restricciones;
+                        oldT.aptitud_ocupacional !== aptitudData.aptitud_ocupacional ||
+                        oldT.aptitud_fecha !== aptitudData.aptitud_fecha ||
+                        oldT.aptitud_vigencia !== aptitudData.aptitud_vigencia ||
+                        oldT.aptitud_restricciones !== aptitudData.aptitud_restricciones;
 
-                    if (aptitudCambiada) {
+                    if (esMedicoOcupacional() && aptitudCambiada) {
                         const eventoAptitud = crearDatosEventoHistorial('APTITUD_OCUPACIONAL', 'Actualización de Aptitud Ocupacional', {
                             aptitud_anterior: oldT.aptitud_ocupacional || 'No definido',
-                            aptitud_nueva: trabajadorData.aptitud_ocupacional,
-                            fecha_evaluacion: trabajadorData.aptitud_fecha || null,
-                            vigencia_hasta: trabajadorData.aptitud_vigencia || null,
-                            restricciones: trabajadorData.aptitud_restricciones || null
+                            aptitud_nueva: aptitudData.aptitud_ocupacional,
+                            fecha_evaluacion: aptitudData.aptitud_fecha || null,
+                            vigencia_hasta: aptitudData.aptitud_vigencia || null,
+                            restricciones: aptitudData.aptitud_restricciones || null
                         });
                         batch.set(doc(historialRefBase), eventoAptitud);
                     }
 
                     batch.update(trabajadorRef, trabajadorData);
+
+                    if (esMedicoOcupacional()) {
+                        batch.set(saludClinicaRef, { ...saludClinicaData, trabajador_id: id }, { merge: true });
+                        batch.set(aptitudRef, { ...aptitudData, trabajador_id: id }, { merge: true });
+                    }
 
                     examenesNuevos.forEach(examen => {
                         const examenRef = doc(coleccionExamenesMedicos);
@@ -1776,6 +1919,8 @@
                 } else {
                     // Crear nuevo
                     const trabajadorRef = doc(coleccionTrabajadores);
+                    const saludClinicaRef = doc(coleccionSaludClinica, trabajadorRef.id);
+                    const aptitudRef = doc(coleccionAptitudesOcupacionales, trabajadorRef.id);
                     trabajadorData.fechaCreacion = new Date().toISOString();
                     trabajadorData.archivado = false;
                     trabajadorData.examenes_version = 2;
@@ -1784,13 +1929,20 @@
                         estado_laboral: trabajadorData.estado_laboral,
                         departamento: trabajadorData.departamento,
                         puesto_trabajo: trabajadorData.puesto_trabajo,
-                        aptitud_ocupacional: trabajadorData.aptitud_ocupacional
+                        aptitud_ocupacional: esMedicoOcupacional()
+                            ? aptitudData.aptitud_ocupacional
+                            : 'Pendiente de evaluación'
                     });
 
                     const historialRefBase = collection(trabajadorRef, 'historial_ocupacional');
 
                     batch.set(trabajadorRef, trabajadorData);
                     batch.set(doc(historialRefBase), eventoCreacion);
+
+                    if (esMedicoOcupacional()) {
+                        batch.set(saludClinicaRef, { ...saludClinicaData, trabajador_id: trabajadorRef.id });
+                        batch.set(aptitudRef, { ...aptitudData, trabajador_id: trabajadorRef.id });
+                    }
 
                     examenesNuevos.forEach(examen => {
                         const examenRef = doc(coleccionExamenesMedicos);
@@ -1831,9 +1983,14 @@
 
         navItems.forEach(item => {
             item.addEventListener('click', function() {
-                // Validación de acceso a configuración ANTES de cambiar visualmente
-                if (this.dataset.page === 'configuracion' && (!currentUserProfile || currentUserProfile.rol !== 'Administrador')) {
+                // Validación de acceso antes de cambiar visualmente
+                if (this.dataset.page === 'configuracion' && currentUserProfile?.rol !== 'Administrador') {
                     showToast('No tiene permisos para acceder a Configuración.', 'error');
+                    return;
+                }
+
+                if (this.dataset.page === 'salud' && !['Médico Ocupacional', 'Responsable H&S'].includes(currentUserProfile?.rol)) {
+                    showToast('No tiene permisos para acceder a Salud Ocupacional.', 'error');
                     return;
                 }
 
