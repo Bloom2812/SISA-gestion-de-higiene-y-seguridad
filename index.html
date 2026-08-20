@@ -263,36 +263,18 @@
                                     <span class="icon">🔍</span>
                                     <input type="text" id="searchTrabajador" class="form-control" placeholder="Buscar por nombre, DNI..." />
                                 </div>
-                                <select id="filterDepartamento" class="form-control" style="width: auto;">
-                                    <option value="">Todas las Áreas</option>
-                                    <!-- Options populated by JS -->
-                                </select>
-                                <select id="filterEstadoLaboral" class="form-control" style="width: auto;">
-                                    <option value="">Estado laboral: Todos</option>
-                                    <option value="Activo">Activo</option>
-                                    <option value="Inactivo">Inactivo</option>
-                                    <option value="Retirado">Retirado</option>
-                                    <option value="No definido">No definido</option>
-                                </select>
-                                <select id="filterEstadoMedico" class="form-control" style="width: auto;">
-                                    <option value="">Vigilancia médica: Todos</option>
-                                    <option value="success">🟢 Vigente</option>
-                                    <option value="warning">🟡 Por Vencer</option>
-                                    <option value="danger">🔴 Vencido</option>
-                                    <option value="gray">⚪ Sin Registro</option>
-                                </select>
-                                <select id="filterAptitudOcupacional" class="form-control" style="width: auto;">
-                                    <option value="">Aptitud: Todas</option>
-                                    <option value="Apto">Apto</option>
-                                    <option value="Apto con restricciones">Apto con restricciones</option>
-                                    <option value="No apto temporalmente">No apto temporalmente</option>
-                                    <option value="Pendiente de evaluación">Pendiente de evaluación</option>
-                                </select>
-                                <select id="filterArchivo" class="form-control" style="width: auto;">
-                                    <option value="activos">Expedientes activos</option>
-                                    <option value="archivados">Expedientes archivados</option>
-                                    <option value="todos">Todos los expedientes</option>
-                                </select>
+                                <div class="dynamic-filter-group" role="group" aria-label="Filtro del directorio de trabajadores">
+                                    <select id="filterTipo" class="form-control filter-type-select" aria-label="Tipo de filtro">
+                                        <option value="departamento">Área</option>
+                                        <option value="estadoLaboral">Estado laboral</option>
+                                        <option value="estadoMedico">Vigilancia médica</option>
+                                        <option value="aptitudOcupacional">Aptitud ocupacional</option>
+                                        <option value="archivo">Expedientes</option>
+                                    </select>
+                                    <select id="filterValor" class="form-control filter-value-select" aria-label="Valor del filtro">
+                                        <option value="">Todas las áreas</option>
+                                    </select>
+                                </div>
                                 <button class="btn btn-success" id="btnNuevoTrabajador">➕ Registrar Miembro</button>
                             </div>
                         </div>

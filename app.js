@@ -983,6 +983,81 @@
 
         // Variables para filtrado
         let filtrosTrabajadores = { busqueda: '', departamento: '', estadoLaboral: '', estadoMedico: '', aptitudOcupacional: '', archivo: 'activos' };
+        let departamentosDisponiblesFiltro = [];
+
+        const opcionesFiltroTrabajadores = {
+            estadoLaboral: [
+                { value: '', label: 'Todos los estados laborales' },
+                { value: 'Activo', label: 'Activo' },
+                { value: 'Inactivo', label: 'Inactivo' },
+                { value: 'Retirado', label: 'Retirado' },
+                { value: 'No definido', label: 'No definido' }
+            ],
+            estadoMedico: [
+                { value: '', label: 'Todos los estados médicos' },
+                { value: 'success', label: '🟢 Vigente' },
+                { value: 'warning', label: '🟡 Por vencer' },
+                { value: 'danger', label: '🔴 Vencido' },
+                { value: 'gray', label: '⚪ Sin registro' }
+            ],
+            aptitudOcupacional: [
+                { value: '', label: 'Todas las aptitudes' },
+                { value: 'Apto', label: 'Apto' },
+                { value: 'Apto con restricciones', label: 'Apto con restricciones' },
+                { value: 'No apto temporalmente', label: 'No apto temporalmente' },
+                { value: 'Pendiente de evaluación', label: 'Pendiente de evaluación' }
+            ],
+            archivo: [
+                { value: 'activos', label: 'Expedientes activos' },
+                { value: 'archivados', label: 'Expedientes archivados' },
+                { value: 'todos', label: 'Todos los expedientes' }
+            ]
+        };
+
+        function obtenerOpcionesFiltroTrabajadores(tipoFiltro) {
+            if (tipoFiltro === 'departamento') {
+                return [
+                    { value: '', label: 'Todas las áreas' },
+                    ...departamentosDisponiblesFiltro.map(nombre => ({ value: nombre, label: nombre }))
+                ];
+            }
+
+            return opcionesFiltroTrabajadores[tipoFiltro] || [];
+        }
+
+        function restablecerFiltrosDirectorio() {
+            filtrosTrabajadores.departamento = '';
+            filtrosTrabajadores.estadoLaboral = '';
+            filtrosTrabajadores.estadoMedico = '';
+            filtrosTrabajadores.aptitudOcupacional = '';
+            // Los expedientes archivados permanecen fuera del directorio salvo que se elija ese filtro.
+            filtrosTrabajadores.archivo = 'activos';
+        }
+
+        function actualizarOpcionesFiltroValor() {
+            const tipoFiltro = document.getElementById('filterTipo').value;
+            const selectValor = document.getElementById('filterValor');
+            const opciones = obtenerOpcionesFiltroTrabajadores(tipoFiltro);
+
+            selectValor.innerHTML = '';
+            opciones.forEach(({ value, label }) => {
+                const option = document.createElement('option');
+                option.value = value;
+                option.textContent = label;
+                selectValor.appendChild(option);
+            });
+
+            selectValor.value = tipoFiltro === 'archivo' ? 'activos' : '';
+        }
+
+        function aplicarFiltroDirectorioSeleccionado() {
+            const tipoFiltro = document.getElementById('filterTipo').value;
+            const valorFiltro = document.getElementById('filterValor').value;
+
+            restablecerFiltrosDirectorio();
+            filtrosTrabajadores[tipoFiltro] = valorFiltro;
+            renderizarTarjetasTrabajadores();
+        }
 
         function renderizarTarjetasTrabajadores() {
             const grid = document.getElementById('trabajadoresGrid');
@@ -1162,47 +1237,31 @@
             renderizarTarjetasTrabajadores();
         });
 
-        document.getElementById('filterDepartamento').addEventListener('change', (e) => {
-            filtrosTrabajadores.departamento = e.target.value;
-            renderizarTarjetasTrabajadores();
+        document.getElementById('filterTipo').addEventListener('change', () => {
+            actualizarOpcionesFiltroValor();
+            aplicarFiltroDirectorioSeleccionado();
         });
 
-        document.getElementById('filterEstadoLaboral').addEventListener('change', (e) => {
-            filtrosTrabajadores.estadoLaboral = e.target.value;
-            renderizarTarjetasTrabajadores();
-        });
-
-        document.getElementById('filterEstadoMedico').addEventListener('change', (e) => {
-            filtrosTrabajadores.estadoMedico = e.target.value;
-            renderizarTarjetasTrabajadores();
-        });
-
-        document.getElementById('filterAptitudOcupacional').addEventListener('change', (e) => {
-            filtrosTrabajadores.aptitudOcupacional = e.target.value;
-            renderizarTarjetasTrabajadores();
-        });
-
-        document.getElementById('filterArchivo').addEventListener('change', (e) => {
-            filtrosTrabajadores.archivo = e.target.value;
-            renderizarTarjetasTrabajadores();
-        });
+        document.getElementById('filterValor').addEventListener('change', aplicarFiltroDirectorioSeleccionado);
+        actualizarOpcionesFiltroValor();
 
         // Actualizar el select de filtros de departamento cuando se carga la página o cambian las áreas
         async function actualizarSelectFiltroDepartamentos() {
-            const selectFiltro = document.getElementById('filterDepartamento');
-            const valorActual = selectFiltro.value;
-            selectFiltro.innerHTML = '<option value="">Todas las Áreas</option>';
-
             try {
                 const snapshot = await getDocs(coleccionAreas);
-                snapshot.forEach(doc => {
-                    const data = doc.data();
-                    const option = document.createElement('option');
-                    option.value = data.nombre;
-                    option.textContent = data.nombre;
-                    selectFiltro.appendChild(option);
-                });
-                selectFiltro.value = valorActual; // Mantener selección si existe
+                departamentosDisponiblesFiltro = snapshot.docs
+                    .map(docSnap => docSnap.data().nombre)
+                    .filter(Boolean)
+                    .sort((a, b) => a.localeCompare(b, 'es', { sensitivity: 'base' }));
+
+                if (document.getElementById('filterTipo').value === 'departamento') {
+                    const valorActual = document.getElementById('filterValor').value;
+                    actualizarOpcionesFiltroValor();
+
+                    if (departamentosDisponiblesFiltro.includes(valorActual)) {
+                        document.getElementById('filterValor').value = valorActual;
+                    }
+                }
             } catch (error) {
                 console.error("Error al cargar áreas para el filtro:", error);
             }

@@ -27,9 +27,11 @@ else
   echo "❌ FAIL: boton restaurar no encontrado"
 fi
 
-echo "TEST 5: Verifica filtroArchivo en index.html"
-if grep -q "filterArchivo" index.html; then
-  echo "✅ PASS: filterArchivo encontrado"
+echo "TEST 5: Verifica filtro dinámico de expedientes"
+if grep -q 'id="filterTipo"' index.html \
+  && grep -q '<option value="archivo">Expedientes</option>' index.html \
+  && grep -q "archivo:" app.js; then
+  echo "✅ PASS: filtro dinámico de expedientes encontrado"
 else
-  echo "❌ FAIL: filterArchivo no encontrado"
+  echo "❌ FAIL: filtro dinámico de expedientes no encontrado"
 fi
