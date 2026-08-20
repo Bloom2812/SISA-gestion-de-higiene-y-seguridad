@@ -5,6 +5,7 @@
         import { migrarSaludLegacy } from "./scripts/migrar-salud-legacy.js";
         import { auditarLimpiezaSaludLegacy } from "./scripts/auditar-limpieza-salud-legacy.js";
         import { repararSaludClinicaFaltante, EXPEDIENTE_REPARABLE } from "./scripts/reparar-salud-clinica-faltante.js";
+        import { limpiarSaludLegacyControlado, EXPEDIENTES_LIMPIABLES } from "./scripts/limpiar-salud-legacy-controlado.js";
 
         // ==========================================================
         // ⚠️ PEGA AQUÍ TU CONFIGURACIÓN DE FIREBASE ⚠️
@@ -754,7 +755,7 @@
             });
         }
 
-        function renderizarAccionReparacionClinica(reporte) {
+        function renderizarAccionesLimpieza(reporte) {
             const contenedor = document.getElementById('auditoriaSaludAcciones');
             contenedor.replaceChildren();
 
@@ -764,22 +765,98 @@
                 && item.destinos_faltantes?.length === 1
                 && item.destinos_faltantes[0] === 'salud_clinica'
             );
-            if (!bloqueado) return;
+            if (bloqueado) {
+                const fila = document.createElement('div');
+                fila.style.cssText = 'display:flex; justify-content:space-between; gap:16px; align-items:center; padding:12px; border:1px solid #f59e0b; border-radius:8px; margin-top:10px;';
 
-            const fila = document.createElement('div');
-            fila.style.cssText = 'display:flex; justify-content:space-between; gap:16px; align-items:center; padding:12px; border:1px solid #f59e0b; border-radius:8px; margin-top:10px;';
+                const detalle = document.createElement('span');
+                detalle.textContent = `ID: ${bloqueado.trabajador_id} · Destino faltante: salud_clinica`;
 
-            const detalle = document.createElement('span');
-            detalle.textContent = `ID: ${bloqueado.trabajador_id} · Destino faltante: salud_clinica`;
+                const boton = document.createElement('button');
+                boton.type = 'button';
+                boton.className = 'btn btn-warning btn-reparar-salud-clinica';
+                boton.textContent = 'Reparar solo este destino';
+                boton.addEventListener('click', () => repararDestinoClinicoControlado(bloqueado.trabajador_id));
 
-            const boton = document.createElement('button');
-            boton.type = 'button';
-            boton.className = 'btn btn-warning btn-reparar-salud-clinica';
-            boton.textContent = 'Reparar solo este destino';
-            boton.addEventListener('click', () => repararDestinoClinicoControlado(bloqueado.trabajador_id));
+                fila.append(detalle, boton);
+                contenedor.appendChild(fila);
+            }
 
-            fila.append(detalle, boton);
-            contenedor.appendChild(fila);
+            (reporte?.listos_para_limpieza || [])
+                .filter(item => EXPEDIENTES_LIMPIABLES.includes(item.trabajador_id))
+                .forEach(item => {
+                    const fila = document.createElement('div');
+                    fila.style.cssText = 'display:flex; justify-content:space-between; gap:16px; align-items:center; padding:12px; border:1px solid #ef4444; border-radius:8px; margin-top:10px;';
+
+                    const detalle = document.createElement('span');
+                    detalle.textContent = `ID: ${item.trabajador_id} · Origen y destinos equivalentes`;
+
+                    const boton = document.createElement('button');
+                    boton.type = 'button';
+                    boton.className = 'btn btn-danger btn-limpiar-salud-legacy';
+                    boton.textContent = 'Eliminar campos legacy de este expediente';
+                    boton.addEventListener('click', () => limpiarLegacyControlado(item.trabajador_id));
+
+                    fila.append(detalle, boton);
+                    contenedor.appendChild(fila);
+                });
+        }
+
+        async function limpiarLegacyControlado(trabajadorId) {
+            if (!esMedicoOcupacional()) {
+                showToast('Solo el Médico Ocupacional puede ejecutar esta limpieza.', 'error');
+                return;
+            }
+
+            const autorizado = ultimoReporteAuditoriaLimpieza?.listos_para_limpieza
+                ?.some(item => item.trabajador_id === trabajadorId);
+            if (!autorizado || !EXPEDIENTES_LIMPIABLES.includes(trabajadorId)) {
+                showToast('El expediente no pertenece al último reporte verificado.', 'error');
+                return;
+            }
+
+            const confirmacionRequerida = `LIMPIAR LEGACY ${trabajadorId}`;
+            const confirmacion = window.prompt(
+                `Se eliminarán únicamente los once campos legacy de trabajadores/${trabajadorId}. Los documentos separados se conservarán.\n\nEscriba exactamente: ${confirmacionRequerida}`
+            );
+            if (confirmacion !== confirmacionRequerida) {
+                showToast('Limpieza cancelada: la confirmación no coincide.', 'error');
+                return;
+            }
+
+            const salida = document.getElementById('auditoriaSaludSalida');
+            document.querySelectorAll('.btn-limpiar-salud-legacy')
+                .forEach(boton => { boton.disabled = true; });
+            salida.textContent = `Limpiando exclusivamente los campos legacy de ${trabajadorId}...`;
+
+            try {
+                const operacion = await limpiarSaludLegacyControlado(db, trabajadorId);
+                const verificacion = await auditarLimpiezaSaludLegacy(db);
+                ultimoReporteAuditoriaLimpieza = verificacion;
+                salida.textContent = JSON.stringify({ operacion, verificacion }, null, 2);
+                renderizarAccionesLimpieza(verificacion);
+
+                const sigueConLegacy = verificacion.listos_para_limpieza
+                    .some(item => item.trabajador_id === trabajadorId);
+                const bloqueado = verificacion.bloqueados
+                    .some(item => item.trabajador_id === trabajadorId);
+                if (sigueConLegacy || bloqueado || verificacion.errores.length > 0) {
+                    showToast('La auditoría posterior no confirmó la limpieza.', 'error');
+                    return;
+                }
+                showToast('✅ Campos legacy eliminados; documentos separados conservados');
+            } catch (error) {
+                console.error('Error en limpieza legacy controlada:', error);
+                ultimoReporteAuditoriaLimpieza = null;
+                document.getElementById('auditoriaSaludAcciones').replaceChildren();
+                salida.textContent = JSON.stringify({
+                    modo: 'LIMPIEZA_LEGACY_CONTROLADA',
+                    trabajador_id: trabajadorId,
+                    error: error?.message || String(error),
+                    instruccion: 'No repetir sin ejecutar una nueva auditoría de limpieza.'
+                }, null, 2);
+                showToast('La limpieza no pudo confirmarse.', 'error');
+            }
         }
 
         async function repararDestinoClinicoControlado(trabajadorId) {
@@ -817,7 +894,7 @@
                 const verificacion = await auditarLimpiezaSaludLegacy(db);
                 ultimoReporteAuditoriaLimpieza = verificacion;
                 salida.textContent = JSON.stringify({ operacion, verificacion }, null, 2);
-                renderizarAccionReparacionClinica(verificacion);
+                renderizarAccionesLimpieza(verificacion);
 
                 const listoParaLimpieza = verificacion.listos_para_limpieza
                     .some(item => item.trabajador_id === trabajadorId);
@@ -965,7 +1042,7 @@
                 const reporte = await auditarLimpiezaSaludLegacy(db);
                 ultimoReporteAuditoriaLimpieza = reporte;
                 salida.textContent = JSON.stringify(reporte, null, 2);
-                renderizarAccionReparacionClinica(reporte);
+                renderizarAccionesLimpieza(reporte);
                 showToast('✅ Auditoría de limpieza finalizada sin escrituras');
             } catch (error) {
                 console.error('Error en auditoría de limpieza legacy:', error);
