@@ -1,4 +1,4 @@
-name: Salud Ocupacional - Seguridad
+name: SISA - Seguridad
 
 on:
   pull_request:
@@ -12,7 +12,7 @@ permissions:
 
 jobs:
   security-tests:
-    name: Reglas, permisos y migración
+    name: Reglas, permisos y trazabilidad
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
