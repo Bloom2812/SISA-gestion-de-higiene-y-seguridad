@@ -38,6 +38,7 @@
             'Administrador',
             'Gerencia',
             'Responsable H&S',
+            'Médico Ocupacional',
             'Supervisor',
             'Trabajador'
         ];
