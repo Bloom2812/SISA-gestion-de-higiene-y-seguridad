@@ -70,6 +70,20 @@ service cloud.firestore {
         }
       }
 
+      match /salud_clinica/{trabajadorId} {
+        allow read, create, update:
+          if hasRole(appId, ['Médico Ocupacional']);
+        allow delete: if false;
+      }
+
+      match /aptitudes_ocupacionales/{trabajadorId} {
+        allow read:
+          if isOccupationalHealthStaff(appId);
+        allow create, update:
+          if hasRole(appId, ['Médico Ocupacional']);
+        allow delete: if false;
+      }
+
       match /examenes_medicos/{examenId} {
         allow read, create, update: if isOccupationalHealthStaff(appId);
         allow delete: if false;

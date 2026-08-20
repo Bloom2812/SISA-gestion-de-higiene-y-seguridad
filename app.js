@@ -195,8 +195,17 @@
                     // Iniciar la escucha de datos
                     iniciarSuscripcionRiesgos();
                     iniciarSuscripcionAreas();
-                    iniciarSuscripcionTrabajadores();
-                    iniciarSuscripcionExamenesMedicos();
+                    if (['Médico Ocupacional', 'Responsable H&S'].includes(currentUserProfile.rol)) {
+                        iniciarSuscripcionTrabajadores();
+                        iniciarSuscripcionExamenesMedicos();
+                        iniciarSuscripcionAptitudesOcupacionales();
+
+                        if (esMedicoOcupacional()) {
+                            iniciarSuscripcionSaludClinica();
+                        } else {
+                            saludClinicaCargada = true;
+                        }
+                    }
 
                     if (currentUserProfile.rol === 'Administrador') {
                         iniciarSuscripcionUsuarios();
@@ -231,12 +240,20 @@
                 if(unsubscribeAreas) unsubscribeAreas();
                 if(unsubscribeTrabajadores) unsubscribeTrabajadores();
                 if(unsubscribeExamenesMedicos) unsubscribeExamenesMedicos();
+                if(unsubscribeSaludClinica) unsubscribeSaludClinica();
+                if(unsubscribeAptitudesOcupacionales) unsubscribeAptitudesOcupacionales();
 
                 unsubscribeRiesgos = null;
                 unsubscribeUsuarios = null;
                 unsubscribeAreas = null;
                 unsubscribeTrabajadores = null;
                 unsubscribeExamenesMedicos = null;
+                unsubscribeSaludClinica = null;
+                unsubscribeAptitudesOcupacionales = null;
+                cacheTrabajadoresBase = {};
+                cacheSaludClinica = {};
+                cacheAptitudesOcupacionales = {};
+                cacheExamenesPorTrabajador = {};
             }
         });
 
@@ -597,8 +614,47 @@
         let unsubscribeTrabajadores = null;
 
         const coleccionExamenesMedicos = collection(db, 'artifacts', appId, 'public', 'data', 'examenes_medicos');
+        const coleccionSaludClinica = collection(db, 'artifacts', appId, 'public', 'data', 'salud_clinica');
+        const coleccionAptitudesOcupacionales = collection(db, 'artifacts', appId, 'public', 'data', 'aptitudes_ocupacionales');
+
         let unsubscribeExamenesMedicos = null;
+        let unsubscribeSaludClinica = null;
+        let unsubscribeAptitudesOcupacionales = null;
+
         let cacheExamenesPorTrabajador = {};
+        let cacheTrabajadoresBase = {};
+        let cacheSaludClinica = {};
+        let cacheAptitudesOcupacionales = {};
+
+        function esMedicoOcupacional() {
+            return currentUserProfile?.rol === 'Médico Ocupacional';
+        }
+
+        function reconstruirCacheTrabajadores() {
+            cacheTrabajadores = {};
+
+            Object.entries(cacheTrabajadoresBase).forEach(([id, base]) => {
+                const trabajador = { ...base, id };
+
+                if (esMedicoOcupacional()) {
+                    Object.assign(trabajador, cacheSaludClinica[id] || {});
+                } else {
+                    // Evita mostrar campos clínicos heredados al Responsable H&S.
+                    [
+                        'tipo_sangre',
+                        'alergias',
+                        'condiciones_medicas',
+                        'emergencia_contacto_nombre',
+                        'emergencia_contacto_parentesco',
+                        'emergencia_contacto_telefono',
+                        'aptitud_observaciones'
+                    ].forEach(campo => delete trabajador[campo]);
+                }
+
+                Object.assign(trabajador, cacheAptitudesOcupacionales[id] || {});
+                cacheTrabajadores[id] = trabajador;
+            });
+        }
 
         function obtenerExamenesTrabajador(t) {
             const nuevos = cacheExamenesPorTrabajador[t.id] || [];
@@ -1102,9 +1158,12 @@
 
         let trabajadoresCargados = false;
         let examenesCargados = false;
+        let saludClinicaCargada = false;
+        let aptitudesCargadas = false;
 
         function renderizarTrabajadoresSiListo() {
-            if (trabajadoresCargados && examenesCargados) {
+            if (trabajadoresCargados && examenesCargados && saludClinicaCargada && aptitudesCargadas) {
+                reconstruirCacheTrabajadores();
                 renderizarTarjetasTrabajadores();
             }
         }
@@ -1115,12 +1174,12 @@
             actualizarSelectFiltroDepartamentos();
 
             unsubscribeTrabajadores = onSnapshot(coleccionTrabajadores, (snapshot) => {
-                cacheTrabajadores = {};
+                cacheTrabajadoresBase = {};
 
                 snapshot.forEach((docSnap) => {
                     const data = docSnap.data();
                     const id = docSnap.id;
-                    cacheTrabajadores[id] = { ...data, id };
+                    cacheTrabajadoresBase[id] = { ...data, id };
                 });
 
                 trabajadoresCargados = true;
@@ -1155,6 +1214,36 @@
 
             }, (error) => {
                 console.error("Error al cargar examenes medicos:", error);
+            });
+        }
+
+        function iniciarSuscripcionSaludClinica() {
+            if (!currentUser || !esMedicoOcupacional()) return;
+
+            unsubscribeSaludClinica = onSnapshot(coleccionSaludClinica, (snapshot) => {
+                cacheSaludClinica = {};
+                snapshot.forEach(docSnap => {
+                    cacheSaludClinica[docSnap.id] = docSnap.data();
+                });
+                saludClinicaCargada = true;
+                renderizarTrabajadoresSiListo();
+            }, (error) => {
+                console.error("Error al cargar información clínica:", error);
+            });
+        }
+
+        function iniciarSuscripcionAptitudesOcupacionales() {
+            if (!currentUser) return;
+
+            unsubscribeAptitudesOcupacionales = onSnapshot(coleccionAptitudesOcupacionales, (snapshot) => {
+                cacheAptitudesOcupacionales = {};
+                snapshot.forEach(docSnap => {
+                    cacheAptitudesOcupacionales[docSnap.id] = docSnap.data();
+                });
+                aptitudesCargadas = true;
+                renderizarTrabajadoresSiListo();
+            }, (error) => {
+                console.error("Error al cargar aptitudes ocupacionales:", error);
             });
         }
 
@@ -1685,25 +1774,32 @@
                     departamento: document.getElementById('t_departamento').value,
                     puesto_trabajo: document.getElementById('t_puesto').value,
                     estado_laboral: estadoLaboralVal,
+                    talla_ropa: document.getElementById('t_talla_ropa').value,
+                    talla_calzado: document.getElementById('t_talla_calzado').value,
+                    fechaActualizacion: new Date().toISOString()
+                };
 
+                const saludClinicaData = {
+                    trabajador_id: id || null,
                     tipo_sangre: document.getElementById('t_tipo_sangre').value,
                     alergias: t_alergias_array,
                     condiciones_medicas: t_condiciones_array,
-
                     emergencia_contacto_nombre: document.getElementById('t_emergencia_nombre').value,
                     emergencia_contacto_parentesco: document.getElementById('t_emergencia_parentesco').value,
                     emergencia_contacto_telefono: document.getElementById('t_emergencia_telefono').value,
+                    fechaActualizacion: serverTimestamp(),
+                    actualizado_por_uid: currentUser?.uid || null
+                };
 
-                    talla_ropa: document.getElementById('t_talla_ropa').value,
-                    talla_calzado: document.getElementById('t_talla_calzado').value,
-
+                const aptitudData = {
+                    trabajador_id: id || null,
                     aptitud_ocupacional: aptitudOcupacional,
                     aptitud_fecha: aptitudFecha,
                     aptitud_vigencia: aptitudVigencia,
                     aptitud_restricciones: aptitudOcupacional === 'Apto con restricciones' ? aptitudRestricciones : '',
                     aptitud_observaciones: aptitudObservaciones,
-
-                    fechaActualizacion: new Date().toISOString()
+                    fechaActualizacion: serverTimestamp(),
+                    actualizado_por_uid: currentUser?.uid || null
                 };
 
                 if(fotoUrl) trabajadorData.fotografia_url = fotoUrl;
@@ -1716,6 +1812,8 @@
                     // Editar existente
                     const trabajadorRef = doc(db, 'artifacts', appId, 'public', 'data', 'trabajadores', id);
                     const historialRefBase = collection(trabajadorRef, 'historial_ocupacional');
+                    const saludClinicaRef = doc(coleccionSaludClinica, id);
+                    const aptitudRef = doc(coleccionAptitudesOcupacionales, id);
                     const oldT = cacheTrabajadores[id] || {};
 
                     // 1. CAMBIO_AREA_PUESTO
@@ -1740,23 +1838,28 @@
 
                     // 3. APTITUD_OCUPACIONAL
                     const aptitudCambiada =
-                        oldT.aptitud_ocupacional !== trabajadorData.aptitud_ocupacional ||
-                        oldT.aptitud_fecha !== trabajadorData.aptitud_fecha ||
-                        oldT.aptitud_vigencia !== trabajadorData.aptitud_vigencia ||
-                        oldT.aptitud_restricciones !== trabajadorData.aptitud_restricciones;
+                        oldT.aptitud_ocupacional !== aptitudData.aptitud_ocupacional ||
+                        oldT.aptitud_fecha !== aptitudData.aptitud_fecha ||
+                        oldT.aptitud_vigencia !== aptitudData.aptitud_vigencia ||
+                        oldT.aptitud_restricciones !== aptitudData.aptitud_restricciones;
 
-                    if (aptitudCambiada) {
+                    if (esMedicoOcupacional() && aptitudCambiada) {
                         const eventoAptitud = crearDatosEventoHistorial('APTITUD_OCUPACIONAL', 'Actualización de Aptitud Ocupacional', {
                             aptitud_anterior: oldT.aptitud_ocupacional || 'No definido',
-                            aptitud_nueva: trabajadorData.aptitud_ocupacional,
-                            fecha_evaluacion: trabajadorData.aptitud_fecha || null,
-                            vigencia_hasta: trabajadorData.aptitud_vigencia || null,
-                            restricciones: trabajadorData.aptitud_restricciones || null
+                            aptitud_nueva: aptitudData.aptitud_ocupacional,
+                            fecha_evaluacion: aptitudData.aptitud_fecha || null,
+                            vigencia_hasta: aptitudData.aptitud_vigencia || null,
+                            restricciones: aptitudData.aptitud_restricciones || null
                         });
                         batch.set(doc(historialRefBase), eventoAptitud);
                     }
 
                     batch.update(trabajadorRef, trabajadorData);
+
+                    if (esMedicoOcupacional()) {
+                        batch.set(saludClinicaRef, { ...saludClinicaData, trabajador_id: id }, { merge: true });
+                        batch.set(aptitudRef, { ...aptitudData, trabajador_id: id }, { merge: true });
+                    }
 
                     examenesNuevos.forEach(examen => {
                         const examenRef = doc(coleccionExamenesMedicos);
@@ -1777,6 +1880,8 @@
                 } else {
                     // Crear nuevo
                     const trabajadorRef = doc(coleccionTrabajadores);
+                    const saludClinicaRef = doc(coleccionSaludClinica, trabajadorRef.id);
+                    const aptitudRef = doc(coleccionAptitudesOcupacionales, trabajadorRef.id);
                     trabajadorData.fechaCreacion = new Date().toISOString();
                     trabajadorData.archivado = false;
                     trabajadorData.examenes_version = 2;
@@ -1785,13 +1890,20 @@
                         estado_laboral: trabajadorData.estado_laboral,
                         departamento: trabajadorData.departamento,
                         puesto_trabajo: trabajadorData.puesto_trabajo,
-                        aptitud_ocupacional: trabajadorData.aptitud_ocupacional
+                        aptitud_ocupacional: esMedicoOcupacional()
+                            ? aptitudData.aptitud_ocupacional
+                            : 'Pendiente de evaluación'
                     });
 
                     const historialRefBase = collection(trabajadorRef, 'historial_ocupacional');
 
                     batch.set(trabajadorRef, trabajadorData);
                     batch.set(doc(historialRefBase), eventoCreacion);
+
+                    if (esMedicoOcupacional()) {
+                        batch.set(saludClinicaRef, { ...saludClinicaData, trabajador_id: trabajadorRef.id });
+                        batch.set(aptitudRef, { ...aptitudData, trabajador_id: trabajadorRef.id });
+                    }
 
                     examenesNuevos.forEach(examen => {
                         const examenRef = doc(coleccionExamenesMedicos);
