@@ -142,6 +142,22 @@
             }, 3000);
         }
 
+        function escapeHtml(valor) {
+            return String(valor ?? '')
+                .replaceAll('&', '&amp;')
+                .replaceAll('<', '&lt;')
+                .replaceAll('>', '&gt;')
+                .replaceAll('"', '&quot;')
+                .replaceAll("'", '&#039;');
+        }
+
+        function urlImagenSegura(valor) {
+            const url = String(valor ?? '').trim();
+            if (/^data:image\/(jpeg|png|webp);base64,[a-z0-9+/=\s]+$/i.test(url)) return url;
+            if (/^https:\/\//i.test(url)) return url;
+            return '';
+        }
+
         // ============================================================
         // 2. AUTENTICACIÓN (LOGIN/LOGOUT CON FIREBASE)
         // ============================================================
@@ -842,7 +858,7 @@
             ulAlergias.innerHTML = '';
             t_alergias_array.forEach((alergia, index) => {
                 const li = document.createElement('li');
-                li.innerHTML = `${alergia} <button type="button" class="btn btn-sm btn-danger ml-2" onclick="window.removeAlergia(${index})">x</button>`;
+                li.innerHTML = `${escapeHtml(alergia)} <button type="button" class="btn btn-sm btn-danger ml-2" onclick="window.removeAlergia(${index})">x</button>`;
                 li.style.marginBottom = '5px';
                 ulAlergias.appendChild(li);
             });
@@ -852,7 +868,7 @@
             ulCondiciones.innerHTML = '';
             t_condiciones_array.forEach((condicion, index) => {
                 const li = document.createElement('li');
-                li.innerHTML = `${condicion} <button type="button" class="btn btn-sm btn-danger ml-2" onclick="window.removeCondicion(${index})">x</button>`;
+                li.innerHTML = `${escapeHtml(condicion)} <button type="button" class="btn btn-sm btn-danger ml-2" onclick="window.removeCondicion(${index})">x</button>`;
                 li.style.marginBottom = '5px';
                 ulCondiciones.appendChild(li);
             });
@@ -870,9 +886,9 @@
                         : `<span class="badge badge-info">Registrado</span>`;
 
                     tr.innerHTML = `
-                        <td>${ex.tipo}</td>
-                        <td>${ex.realizacion}</td>
-                        <td>${ex.vencimiento}</td>
+                        <td>${escapeHtml(ex.tipo)}</td>
+                        <td>${escapeHtml(ex.realizacion)}</td>
+                        <td>${escapeHtml(ex.vencimiento)}</td>
                         <td>${accionHtml}</td>
                     `;
                     tbodyExamenes.appendChild(tr);
@@ -1023,7 +1039,7 @@
                 const examenes = obtenerExamenesTrabajador(t);
                 const semaforo = evaluarSemaforoMedico(examenes);
                 const fotoHtml = t.fotografia_url ?
-                    `<img src="${t.fotografia_url}" alt="Foto de ${t.nombres}">` :
+                    `<img src="${escapeHtml(urlImagenSegura(t.fotografia_url))}" alt="Foto de ${escapeHtml(t.nombres)}">` :
                     `<div class="avatar-placeholder">👤</div>`;
 
                 const estadoLaboralT = t.estado_laboral || 'No definido';
@@ -1050,13 +1066,13 @@
                         </div>
                     `;
                     actionButtonHtml = `
-                        <button class="options-btn btn-restaurar-trabajador" data-id="${t.id}" title="Restaurar expediente" style="font-size: 1.2em; background: none; border: none; cursor: pointer;">
+                        <button class="options-btn btn-restaurar-trabajador" data-id="${escapeHtml(t.id)}" title="Restaurar expediente" style="font-size: 1.2em; background: none; border: none; cursor: pointer;">
                             ↩️
                         </button>
                     `;
                 } else {
                     actionButtonHtml = `
-                        <button class="options-btn btn-archivar-trabajador" data-id="${t.id}" title="Archivar expediente" style="font-size: 1.2em; background: none; border: none; cursor: pointer;">
+                        <button class="options-btn btn-archivar-trabajador" data-id="${escapeHtml(t.id)}" title="Archivar expediente" style="font-size: 1.2em; background: none; border: none; cursor: pointer;">
                             📦
                         </button>
                     `;
@@ -1070,15 +1086,15 @@
                             ${badgeArchivado}
                             <div>
                                 <span class="status-label">Estado laboral:</span>
-                                <span class="badge ${colorEstadoLaboral}">${estadoLaboralT}</span>
+                                <span class="badge ${colorEstadoLaboral}">${escapeHtml(estadoLaboralT)}</span>
                             </div>
                             <div>
                                 <span class="status-label">Vigilancia médica:</span>
-                                <span class="badge badge-${semaforo.color}">${semaforo.texto}</span>
+                                <span class="badge badge-${semaforo.color}">${escapeHtml(semaforo.texto)}</span>
                             </div>
                             <div>
                                 <span class="status-label">Aptitud ocupacional:</span>
-                                <span class="badge ${colorAptitudOcupacional}">${aptitudOcupacional}</span>
+                                <span class="badge ${colorAptitudOcupacional}">${escapeHtml(aptitudOcupacional)}</span>
                             </div>
                         </div>
                         ${actionButtonHtml}
@@ -1086,14 +1102,14 @@
 
                     <div class="worker-card-body">
                         ${fotoHtml}
-                        <h3>${t.nombres} ${t.apellidos}</h3>
-                        <div class="role">${t.puesto_trabajo}</div>
-                        <div class="dept">🏢 ${t.departamento}</div>
+                        <h3>${escapeHtml(t.nombres)} ${escapeHtml(t.apellidos)}</h3>
+                        <div class="role">${escapeHtml(t.puesto_trabajo)}</div>
+                        <div class="dept">🏢 ${escapeHtml(t.departamento)}</div>
                     </div>
 
                     <div class="worker-card-footer">
-                        <button class="btn-profile btn-ver-perfil" data-id="${t.id}">Perfil</button>
-                        <button class="btn-history btn-ver-historial" data-id="${t.id}">Historial</button>
+                        <button class="btn-profile btn-ver-perfil" data-id="${escapeHtml(t.id)}">Perfil</button>
+                        <button class="btn-history btn-ver-historial" data-id="${escapeHtml(t.id)}">Historial</button>
                     </div>
                 `;
                 grid.appendChild(card);
@@ -1328,9 +1344,9 @@
                             descriptionHtml = `Expediente ocupacional registrado.<br>`;
                             if (evento.detalle) {
                                 descriptionHtml += `<div class="timeline-detail">
-                                    Área: ${evento.detalle.departamento || '-'} / Puesto: ${evento.detalle.puesto_trabajo || '-'}<br>
-                                    Estado: ${evento.detalle.estado_laboral || '-'}<br>
-                                    Aptitud: ${evento.detalle.aptitud_ocupacional || '-'}
+                                    Área: ${escapeHtml(evento.detalle.departamento || '-')} / Puesto: ${escapeHtml(evento.detalle.puesto_trabajo || '-')}<br>
+                                    Estado: ${escapeHtml(evento.detalle.estado_laboral || '-')}<br>
+                                    Aptitud: ${escapeHtml(evento.detalle.aptitud_ocupacional || '-')}
                                 </div>`;
                             }
                             break;
@@ -1340,7 +1356,7 @@
                             const dPuesto = evento.detalle.puesto_anterior !== evento.detalle.puesto_nuevo;
 
                             if (dArea && dPuesto) {
-                                descriptionHtml = `Área: ${evento.detalle.area_anterior} → <strong>${evento.detalle.area_nueva}</strong><br>Puesto: ${evento.detalle.puesto_anterior} → <strong>${evento.detalle.puesto_nuevo}</strong>`;
+                                descriptionHtml = `Área: ${escapeHtml(evento.detalle.area_anterior)} → <strong>${escapeHtml(evento.detalle.area_nueva)}</strong><br>Puesto: ${escapeHtml(evento.detalle.puesto_anterior)} → <strong>${escapeHtml(evento.detalle.puesto_nuevo)}</strong>`;
                             } else if (dArea) {
                                 descriptionHtml = `Área: ${evento.detalle.area_anterior} → <strong>${evento.detalle.area_nueva}</strong>`;
                             } else if (dPuesto) {
@@ -1351,18 +1367,18 @@
                             break;
                         case 'CAMBIO_ESTADO_LABORAL':
                             icon = '💼';
-                            descriptionHtml = `Estado laboral: ${evento.detalle.anterior} → <strong>${evento.detalle.nuevo}</strong>`;
+                            descriptionHtml = `Estado laboral: ${escapeHtml(evento.detalle.anterior)} → <strong>${escapeHtml(evento.detalle.nuevo)}</strong>`;
                             break;
                         case 'APTITUD_OCUPACIONAL':
                             icon = '🩺';
-                            descriptionHtml = `Aptitud: ${evento.detalle.aptitud_anterior || '-'} → <strong>${evento.detalle.aptitud_nueva || '-'}</strong>`;
+                            descriptionHtml = `Aptitud: ${escapeHtml(evento.detalle.aptitud_anterior || '-')} → <strong>${escapeHtml(evento.detalle.aptitud_nueva || '-')}</strong>`;
                             if (evento.detalle.restricciones) {
-                                descriptionHtml += `<div class="timeline-detail">Restricciones: ${evento.detalle.restricciones}</div>`;
+                                descriptionHtml += `<div class="timeline-detail">Restricciones: ${escapeHtml(evento.detalle.restricciones)}</div>`;
                             }
                             break;
                         case 'ARCHIVADO_EXPEDIENTE':
                             icon = '📦';
-                            descriptionHtml = `Expediente archivado.<div class="timeline-detail">Motivo: ${evento.detalle.motivo || '-'}</div>`;
+                            descriptionHtml = `Expediente archivado.<div class="timeline-detail">Motivo: ${escapeHtml(evento.detalle.motivo || '-')}</div>`;
                             break;
                         case 'RESTAURACION_EXPEDIENTE':
                             icon = '↩️';
@@ -1378,14 +1394,14 @@
                             <div class="timeline-marker">${icon}</div>
                             <div class="timeline-content">
                                 <div class="timeline-header">
-                                    <div class="timeline-title">${evento.titulo || 'Evento Ocupacional'}</div>
-                                    <div class="timeline-date">${formatFecha(evento.fecha_evento)}</div>
+                                    <div class="timeline-title">${escapeHtml(evento.titulo || 'Evento Ocupacional')}</div>
+                                    <div class="timeline-date">${escapeHtml(formatFecha(evento.fecha_evento))}</div>
                                 </div>
                                 <div class="timeline-detail">
                                     ${descriptionHtml}
                                 </div>
                                 <div class="timeline-user">
-                                    <span>Registrado por: ${evento.usuario_nombre} ${evento.usuario_rol ? `(${evento.usuario_rol})` : ''}</span>
+                                    <span>Registrado por: ${escapeHtml(evento.usuario_nombre || 'Usuario')} ${evento.usuario_rol ? `(${escapeHtml(evento.usuario_rol)})` : ''}</span>
                                 </div>
                             </div>
                         </div>
@@ -1441,8 +1457,8 @@
             const examenes = obtenerExamenesTrabajador(t);
             const semaforo = evaluarSemaforoMedico(examenes);
 
-            document.getElementById('p_estado_laboral').innerHTML = `<span class="badge ${colorEstadoLaboral}">${estadoLaboralT}</span>`;
-            document.getElementById('p_estado_vigilancia_medica').innerHTML = `<span class="badge badge-${semaforo.color}">${semaforo.texto}</span>`;
+            document.getElementById('p_estado_laboral').innerHTML = `<span class="badge ${colorEstadoLaboral}">${escapeHtml(estadoLaboralT)}</span>`;
+            document.getElementById('p_estado_vigilancia_medica').innerHTML = `<span class="badge badge-${semaforo.color}">${escapeHtml(semaforo.texto)}</span>`;
 
             // Tarjetas medias
             document.getElementById('p_alergias').textContent = t.alergias && t.alergias.length > 0 ? t.alergias.join(', ') : 'Ninguna';
@@ -1494,7 +1510,7 @@
             else if (aptitudOcupacional === 'Apto con restricciones') colorAptitud = 'badge-warning';
             else if (aptitudOcupacional === 'No apto temporalmente') colorAptitud = 'badge-danger';
 
-            document.getElementById('p_aptitud_ocupacional').innerHTML = `<span class="badge ${colorAptitud}">${aptitudOcupacional}</span>`;
+            document.getElementById('p_aptitud_ocupacional').innerHTML = `<span class="badge ${colorAptitud}">${escapeHtml(aptitudOcupacional)}</span>`;
             document.getElementById('p_aptitud_fecha').textContent = t.aptitud_fecha || '-';
             document.getElementById('p_aptitud_vigencia').textContent = t.aptitud_vigencia || '-';
             document.getElementById('p_aptitud_observaciones').textContent = t.aptitud_observaciones || '-';
