@@ -38,6 +38,7 @@ jobs:
         run: |
           node --check app.js
           node --check scripts/migrar-salud-legacy.js
+          node --check scripts/auditar-limpieza-salud-legacy.js
 
       - name: Ejecutar controles estáticos
         run: |
@@ -45,6 +46,7 @@ jobs:
           bash test_ui_health_permissions.sh
           bash test_migracion_salud.sh
           bash test_auditoria_migracion_salud.sh
+          bash test_auditoria_limpieza_salud.sh
           bash test_xss_salud.sh
 
       - name: Ejecutar Firebase Emulator
