@@ -103,6 +103,7 @@ export async function migrarSaludLegacy(db, opciones = {}) {
     modo: dryRun ? 'DRY_RUN' : 'ESCRITURA',
     analizados: 0,
     candidatos: 0,
+    candidatos_detalle: [],
     migrados: 0,
     sinDatosLegacy: 0,
     yaMigrados: 0,
@@ -155,6 +156,11 @@ export async function migrarSaludLegacy(db, opciones = {}) {
     }
 
     reporte.candidatos++;
+    reporte.candidatos_detalle.push({
+      trabajador_id: snap.id,
+      salud_clinica_pendiente: contieneClinica && !saludActual,
+      aptitud_ocupacional_pendiente: contieneAptitud && !aptitudActual
+    });
     candidatos.push({
       id: snap.id,
       clinica,
