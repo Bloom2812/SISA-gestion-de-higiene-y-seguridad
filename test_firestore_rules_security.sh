@@ -14,6 +14,10 @@ grep -q "match /trabajadores/{trabajadorId}" "$rules_file" || fail "Faltan regla
 grep -q "match /examenes_medicos/{examenId}" "$rules_file" || fail "Faltan reglas para exámenes"
 grep -q "match /salud_clinica/{trabajadorId}" "$rules_file" || fail "Faltan reglas para salud clínica"
 grep -q "match /aptitudes_ocupacionales/{trabajadorId}" "$rules_file" || fail "Faltan reglas para aptitudes"
+grep -q "isIncidentManager" "$rules_file" || fail "Falta el control de gestión de incidentes"
+grep -q "isValidIncident" "$rules_file" || fail "Falta la validación estructural de incidentes"
+grep -q "match /incidentes/{incidenteId}" "$rules_file" || fail "Faltan reglas para incidentes"
+grep -q "match /historial/{eventoId}" "$rules_file" || fail "Falta la bitácora de incidentes"
 grep -q "match /{document=\*\*}" "$rules_file" || fail "Falta cierre por defecto"
 
 if grep -q "request.time < timestamp.date" "$rules_file"; then
