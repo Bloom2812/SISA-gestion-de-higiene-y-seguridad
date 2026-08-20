@@ -591,7 +591,7 @@
 
         .grid-cards {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
             gap: 24px;
             width: 100%;
         }
@@ -770,6 +770,260 @@
         }
         .worker-card-footer .btn-history:hover {
             background: #dbeafe;
+        }
+
+        /* ===== TARJETA PROFESIONAL DE SALUD OCUPACIONAL ===== */
+        .worker-card {
+            padding: 0;
+            overflow: hidden;
+            border: 1px solid #dfe6f1;
+            border-radius: 18px;
+            box-shadow: 0 8px 24px rgba(15, 38, 71, 0.08);
+            transition: box-shadow 0.2s ease, transform 0.2s ease, border-color 0.2s ease;
+        }
+
+        .worker-card:hover {
+            border-color: #b9c9df;
+            box-shadow: 0 14px 34px rgba(15, 38, 71, 0.13);
+            transform: translateY(-3px);
+        }
+
+        .worker-card-header {
+            gap: 16px;
+            margin-bottom: 0;
+            padding: 22px;
+            background: linear-gradient(145deg, #ffffff 0%, #f3f7fd 100%);
+            border-bottom: 1px solid #dfe6f1;
+        }
+
+        .worker-card-identity {
+            display: flex;
+            align-items: center;
+            min-width: 0;
+            gap: 16px;
+        }
+
+        .worker-card-identity img,
+        .worker-card-identity .avatar-placeholder {
+            width: 88px;
+            height: 88px;
+            flex: 0 0 88px;
+            border-radius: 50%;
+            border: 4px solid #fff;
+            outline: 2px solid #c9d4e4;
+            object-fit: cover;
+            background: #eef3f9;
+            box-shadow: 0 4px 12px rgba(15, 38, 71, 0.12);
+        }
+
+        .worker-card-identity .avatar-placeholder {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #40546e;
+            font-size: 34px;
+        }
+
+        .worker-card-identity-copy {
+            min-width: 0;
+        }
+
+        .worker-card-identity h3 {
+            margin: 0 0 5px;
+            color: #0f2647;
+            font-size: 20px;
+            line-height: 1.2;
+            font-weight: 750;
+            overflow-wrap: anywhere;
+        }
+
+        .worker-card-identity .role {
+            margin-bottom: 6px;
+            color: #44546a;
+            font-size: 15px;
+            font-weight: 600;
+        }
+
+        .worker-card-identity .dept {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            color: #718096;
+            font-size: 13px;
+            font-weight: 500;
+        }
+
+        .worker-card-identity .dept .material-symbols-outlined {
+            font-size: 17px;
+        }
+
+        .worker-card-actions {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 8px;
+        }
+
+        .worker-archive-badge .badge {
+            white-space: nowrap;
+        }
+
+        .worker-card-header .worker-archive-badge .badge::before {
+            display: none;
+        }
+
+        .worker-card-header .options-btn {
+            width: 36px;
+            height: 36px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0;
+            background: rgba(255, 255, 255, 0.8);
+            border: 1px solid #d9e2ef;
+            border-radius: 10px;
+            color: #66778e;
+        }
+
+        .worker-card-header .options-btn .material-symbols-outlined {
+            font-size: 20px;
+        }
+
+        .worker-card-header .options-btn:hover {
+            background: #eaf2ff;
+            color: #2563eb;
+        }
+
+        .worker-card-body {
+            display: block;
+            margin-bottom: 0;
+            padding: 20px 22px 6px;
+            text-align: left;
+        }
+
+        .worker-status-group {
+            gap: 0;
+        }
+
+        .worker-status-group > .worker-status-row {
+            display: grid;
+            grid-template-columns: minmax(125px, 0.9fr) minmax(130px, 1.1fr);
+            align-items: center;
+            gap: 14px;
+            min-height: 58px;
+            padding: 10px 0;
+            border-bottom: 1px solid #edf1f6;
+        }
+
+        .worker-status-group > .worker-status-row:last-child {
+            border-bottom: 0;
+        }
+
+        .worker-status-group .status-label {
+            color: #24364d;
+            font-size: 13px;
+            line-height: 1.25;
+            font-weight: 700;
+        }
+
+        .worker-status-group .badge {
+            justify-self: start;
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            max-width: 100%;
+            padding: 7px 12px;
+            border: 1px solid transparent;
+            border-radius: 999px;
+            font-size: 14px;
+            line-height: 1.2;
+            font-weight: 700;
+        }
+
+        .worker-status-group .badge::before {
+            content: '';
+            width: 8px;
+            height: 8px;
+            flex: 0 0 8px;
+            border-radius: 50%;
+            background: currentColor;
+            opacity: 0.75;
+        }
+
+        .worker-status-group .badge-success {
+            background: #e6f8ef;
+            color: #087a4b;
+            border-color: #b9ead2;
+        }
+
+        .worker-status-group .badge-warning {
+            background: #fff5dc;
+            color: #9a5a00;
+            border-color: #f3d58e;
+        }
+
+        .worker-status-group .badge-danger {
+            background: #fff0f0;
+            color: #c52929;
+            border-color: #f4bcbc;
+        }
+
+        .worker-status-group .badge-info {
+            background: #eaf2ff;
+            color: #1d5fbf;
+            border-color: #c6daf8;
+        }
+
+        .worker-status-group .badge-gray {
+            background: #f3f5f8;
+            color: #5e6b7c;
+            border-color: #dce2ea;
+        }
+
+        .worker-card-footer {
+            gap: 12px;
+            margin-top: auto;
+            padding: 16px 22px 22px;
+            border-top: 0;
+        }
+
+        .worker-card-footer button {
+            min-height: 42px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 7px;
+            padding: 9px 12px;
+            border-radius: 9px;
+            font-size: 13px;
+            font-weight: 700;
+        }
+
+        .worker-card-footer .material-symbols-outlined {
+            font-size: 18px;
+        }
+
+        .worker-card-footer .btn-profile {
+            background: #2563eb;
+            border: 1px solid #2563eb;
+            color: #fff;
+        }
+
+        .worker-card-footer .btn-profile:hover {
+            background: #1d4ed8;
+            border-color: #1d4ed8;
+            color: #fff;
+        }
+
+        .worker-card-footer .btn-history {
+            background: #fff;
+            border: 1px solid #b9c7d9;
+            color: #1f5fbd;
+        }
+
+        .worker-card-footer .btn-history:hover {
+            background: #eff6ff;
+            border-color: #7ea5dc;
         }
 
         /* ===== ALERTAS ===== */
@@ -1279,6 +1533,25 @@
 
         @media (max-width: 480px) {
             .grid-4 { grid-template-columns: 1fr; }
+            .grid-cards { grid-template-columns: 1fr; }
+            .worker-card-header { padding: 18px; }
+            .worker-card-identity { align-items: flex-start; gap: 13px; }
+            .worker-card-identity img,
+            .worker-card-identity .avatar-placeholder {
+                width: 72px;
+                height: 72px;
+                flex-basis: 72px;
+            }
+            .worker-card-identity h3 { font-size: 17px; }
+            .worker-card-body { padding: 14px 18px 4px; }
+            .worker-status-group > .worker-status-row {
+                grid-template-columns: minmax(105px, 0.85fr) minmax(125px, 1.15fr);
+                gap: 10px;
+            }
+            .worker-card-footer {
+                flex-direction: column;
+                padding: 14px 18px 18px;
+            }
             .header-title { font-size: 16px; }
             .header-title span { display: none; }
             .header-user .name { display: none; }
