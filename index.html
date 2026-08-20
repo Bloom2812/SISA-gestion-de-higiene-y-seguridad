@@ -84,7 +84,7 @@
                 <div class="nav-item" data-page="riesgos">
                     <span class="icon">⚠️</span> Riesgos (Firebase)
                 </div>
-                <div class="nav-item" data-page="salud">
+                <div class="nav-item" data-page="salud" id="navSaludOcupacional">
                     <span class="icon">🏥</span> Salud Ocupacional
                 </div>
                 <div class="nav-item" data-page="incidentes">
@@ -312,8 +312,8 @@
                         <div class="card">
                             <div class="wizard-steps mb-4 flex-between">
                                 <button type="button" class="btn btn-primary wizard-step-btn" data-step="1">1. Datos Personales</button>
-                                <button type="button" class="btn btn-outline wizard-step-btn" data-step="2" disabled>2. Datos Médicos</button>
-                                <button type="button" class="btn btn-outline wizard-step-btn" data-step="3" disabled>3. Exámenes y EPP</button>
+                                <button type="button" class="btn btn-outline wizard-step-btn" data-step="2" id="wizardBtnDatosMedicos" disabled>2. Datos Médicos</button>
+                                <button type="button" class="btn btn-outline wizard-step-btn" data-step="3" id="wizardBtnExamenes" disabled>3. Exámenes y EPP</button>
                             </div>
                             <form id="formTrabajador">
                                 <input type="hidden" id="t_id" />
@@ -470,6 +470,7 @@
                                             </tbody>
                                         </table>
                                     </div>
+                                    <div id="seccionEdicionAptitud">
                                     <h3 class="mb-3 mt-4">Aptitud Ocupacional</h3>
                                     <div class="grid-2">
                                         <div class="form-group">
@@ -497,6 +498,7 @@
                                             <label>Observaciones de Aptitud</label>
                                             <textarea id="t_aptitud_observaciones" class="form-control" rows="2" placeholder="Información funcional relacionada con la aptitud laboral..."></textarea>
                                         </div>
+                                    </div>
                                     </div>
 
                                     <div class="mt-4 flex-between">
@@ -622,8 +624,8 @@
                                             <p class="dossier-field-label">Vigencia hasta</p>
                                             <p class="dossier-field-value" id="p_aptitud_vigencia">-</p>
                                         </div>
-                                        <div class="dossier-field">
-                                            <p class="dossier-field-label">Observaciones</p>
+                                        <div class="dossier-field" id="perfilAptitudObservaciones">
+                                            <p class="dossier-field-label">Observaciones clínicas</p>
                                             <p class="dossier-field-value" id="p_aptitud_observaciones">-</p>
                                         </div>
                                         <div class="dossier-field" style="grid-column: span 2;" id="container_p_aptitud_restricciones">
@@ -639,7 +641,7 @@
                             <div class="dossier-column-side">
 
                                 <!-- Información Médica & Emergencia -->
-                                <section class="dossier-card">
+                                <section class="dossier-card" id="seccionPerfilClinico">
                                     <div class="dossier-card-header danger">
                                         <span class="material-symbols-outlined">medical_services</span>
                                         <h3>Protocolo de Emergencia</h3>

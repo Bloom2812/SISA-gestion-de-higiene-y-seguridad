@@ -48,25 +48,47 @@
         // ============================================================
         function aplicarPermisosInterfaz() {
             const navConfiguracion = document.getElementById('navConfiguracion');
-            if (!navConfiguracion) return;
+            const navSalud = document.getElementById('navSaludOcupacional');
+            if (!navConfiguracion || !navSalud) return;
 
-            if (currentUserProfile && currentUserProfile.rol === 'Administrador') {
-                navConfiguracion.style.display = '';
-            } else {
-                navConfiguracion.style.display = 'none';
+            const rol = currentUserProfile?.rol;
+            const puedeAccederSalud = ['Médico Ocupacional', 'Responsable H&S'].includes(rol);
 
-                // Si la página actual es configuración (heredada de otra sesión), enviar al dashboard
-                const pageConfiguracion = document.getElementById('page-configuracion');
-                if (pageConfiguracion && pageConfiguracion.classList.contains('active')) {
-                    // Remover active de configuracion
-                    pageConfiguracion.classList.remove('active');
-                    navConfiguracion.classList.remove('active');
+            navConfiguracion.style.display = rol === 'Administrador' ? '' : 'none';
+            navSalud.style.display = puedeAccederSalud ? '' : 'none';
 
-                    // Activar dashboard
-                    document.getElementById('page-dashboard').classList.add('active');
-                    const navDashboard = document.querySelector('.nav-item[data-page="dashboard"]');
-                    if (navDashboard) navDashboard.classList.add('active');
-                }
+            const paginaRestringidaActiva =
+                (document.getElementById('page-configuracion')?.classList.contains('active') && rol !== 'Administrador')
+                || (document.getElementById('page-salud')?.classList.contains('active') && !puedeAccederSalud);
+
+            if (paginaRestringidaActiva) {
+                document.querySelectorAll('.page').forEach(page => page.classList.remove('active'));
+                document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
+                document.getElementById('page-dashboard').classList.add('active');
+                document.querySelector('.nav-item[data-page="dashboard"]')?.classList.add('active');
+            }
+
+            aplicarPermisosSalud();
+        }
+
+        function aplicarPermisosSalud() {
+            const rol = currentUserProfile?.rol;
+            const esMedico = rol === 'Médico Ocupacional';
+            const esResponsableHS = rol === 'Responsable H&S';
+
+            const botonPasoMedico = document.getElementById('wizardBtnDatosMedicos');
+            const botonPasoExamenes = document.getElementById('wizardBtnExamenes');
+            const seccionAptitud = document.getElementById('seccionEdicionAptitud');
+            const perfilClinico = document.getElementById('seccionPerfilClinico');
+            const observacionesClinicas = document.getElementById('perfilAptitudObservaciones');
+
+            if (botonPasoMedico) botonPasoMedico.style.display = esMedico ? '' : 'none';
+            if (seccionAptitud) seccionAptitud.style.display = esMedico ? '' : 'none';
+            if (perfilClinico) perfilClinico.style.display = esMedico ? '' : 'none';
+            if (observacionesClinicas) observacionesClinicas.style.display = esMedico ? '' : 'none';
+
+            if (botonPasoExamenes) {
+                botonPasoExamenes.textContent = esResponsableHS ? '2. Exámenes y EPP' : '3. Exámenes y EPP';
             }
         }
 
@@ -713,6 +735,7 @@
             });
 
             await poblarSelectAreas();
+            aplicarPermisosSalud();
             mostrarPasoWizard(1);
         });
 
@@ -746,10 +769,9 @@
 
         document.querySelectorAll('.btn-next-step').forEach(btn => {
             btn.addEventListener('click', (e) => {
-                const nextStep = e.currentTarget.dataset.next;
-                const currentStep = parseInt(nextStep) - 1;
-
-                // Validación básica de HTML5 para el paso actual antes de avanzar
+                const requestedStep = parseInt(e.currentTarget.dataset.next);
+                const currentStep = requestedStep - 1;
+                const nextStep = currentUserProfile?.rol === 'Responsable H&S' && requestedStep === 2 ? 3 : requestedStep;
                 const currentDiv = document.getElementById(`wizard-step-${currentStep}`);
                 const inputsObligatorios = currentDiv.querySelectorAll('[required]');
                 let valido = true;
@@ -758,10 +780,8 @@
                 });
 
                 if(valido) {
-                    // Enable the button for the next step so user can tab manually later
                     const nextStepBtn = document.querySelector(`.wizard-step-btn[data-step="${nextStep}"]`);
                     if(nextStepBtn) nextStepBtn.disabled = false;
-
                     mostrarPasoWizard(nextStep);
                 }
             });
@@ -769,7 +789,9 @@
 
         document.querySelectorAll('.btn-prev-step').forEach(btn => {
             btn.addEventListener('click', (e) => {
-                mostrarPasoWizard(e.currentTarget.dataset.prev);
+                const requestedStep = parseInt(e.currentTarget.dataset.prev);
+                const prevStep = currentUserProfile?.rol === 'Responsable H&S' && requestedStep === 2 ? 1 : requestedStep;
+                mostrarPasoWizard(prevStep);
             });
         });
 
@@ -1631,6 +1653,7 @@
                 btn.disabled = false;
             });
 
+            aplicarPermisosSalud();
             mostrarPasoWizard(1);
         }
 
@@ -1944,9 +1967,14 @@
 
         navItems.forEach(item => {
             item.addEventListener('click', function() {
-                // Validación de acceso a configuración ANTES de cambiar visualmente
-                if (this.dataset.page === 'configuracion' && (!currentUserProfile || currentUserProfile.rol !== 'Administrador')) {
+                // Validación de acceso antes de cambiar visualmente
+                if (this.dataset.page === 'configuracion' && currentUserProfile?.rol !== 'Administrador') {
                     showToast('No tiene permisos para acceder a Configuración.', 'error');
+                    return;
+                }
+
+                if (this.dataset.page === 'salud' && !['Médico Ocupacional', 'Responsable H&S'].includes(currentUserProfile?.rol)) {
+                    showToast('No tiene permisos para acceder a Salud Ocupacional.', 'error');
                     return;
                 }
 
