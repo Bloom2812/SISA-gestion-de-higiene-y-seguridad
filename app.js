@@ -93,6 +93,8 @@
             if (resultadoAuditoria && !esMedico) {
                 resultadoAuditoria.style.display = 'none';
                 document.getElementById('auditoriaSaludSalida').textContent = '';
+                document.getElementById('auditoriaSaludAcciones').replaceChildren();
+                ultimoReporteAuditoriaSalud = null;
             }
 
             if (botonPasoExamenes) {
@@ -717,6 +719,101 @@
         let t_alergias_array = [];
         let t_condiciones_array = [];
         let t_examenes_array = [];
+        let ultimoReporteAuditoriaSalud = null;
+
+        function renderizarAccionesMigracion(reporte) {
+            const contenedor = document.getElementById('auditoriaSaludAcciones');
+            contenedor.replaceChildren();
+
+            (reporte?.candidatos_detalle || []).forEach(candidato => {
+                const fila = document.createElement('div');
+                fila.style.cssText = 'display:flex; justify-content:space-between; gap:16px; align-items:center; padding:12px; border:1px solid #e5e7eb; border-radius:8px; margin-top:10px;';
+
+                const detalle = document.createElement('span');
+                const pendientes = [
+                    candidato.salud_clinica_pendiente ? 'salud clínica' : null,
+                    candidato.aptitud_ocupacional_pendiente ? 'aptitud ocupacional' : null
+                ].filter(Boolean).join(' y ');
+                detalle.textContent = `ID: ${candidato.trabajador_id} · Pendiente: ${pendientes}`;
+
+                const boton = document.createElement('button');
+                boton.type = 'button';
+                boton.className = 'btn btn-warning btn-migrar-candidato';
+                boton.textContent = 'Migrar solo este expediente';
+                boton.dataset.trabajadorId = candidato.trabajador_id;
+                boton.addEventListener('click', () => migrarCandidatoControlado(candidato.trabajador_id));
+
+                fila.append(detalle, boton);
+                contenedor.appendChild(fila);
+            });
+        }
+
+        async function migrarCandidatoControlado(trabajadorId) {
+            if (!esMedicoOcupacional()) {
+                showToast('Solo el Médico Ocupacional puede ejecutar una migración.', 'error');
+                return;
+            }
+
+            const candidatoAutorizado = ultimoReporteAuditoriaSalud?.candidatos_detalle
+                ?.some(candidato => candidato.trabajador_id === trabajadorId);
+            if (!candidatoAutorizado) {
+                showToast('El ID no pertenece al último reporte DRY_RUN.', 'error');
+                return;
+            }
+
+            const confirmacionRequerida = `MIGRAR ${trabajadorId}`;
+            const confirmacion = window.prompt(
+                `Esta operación migrará únicamente el expediente ${trabajadorId} y conservará los campos legacy.\n\nEscriba exactamente: ${confirmacionRequerida}`
+            );
+            if (confirmacion !== confirmacionRequerida) {
+                showToast('Migración cancelada: la confirmación no coincide.', 'error');
+                return;
+            }
+
+            const salida = document.getElementById('auditoriaSaludSalida');
+            const botones = document.querySelectorAll('.btn-migrar-candidato');
+            botones.forEach(boton => { boton.disabled = true; });
+            salida.textContent = `Migrando exclusivamente ${trabajadorId}...`;
+
+            try {
+                const operacion = await migrarSaludLegacy(db, { dryRun: false, trabajadorId });
+                salida.textContent = JSON.stringify({ operacion, verificacion: 'PENDIENTE' }, null, 2);
+
+                if (operacion.migrados !== 1 || operacion.errores.length > 0 || operacion.conflictos.length > 0) {
+                    ultimoReporteAuditoriaSalud = null;
+                    document.getElementById('auditoriaSaludAcciones').replaceChildren();
+                    showToast('La operación no confirmó una migración. Ejecute un nuevo DRY_RUN.', 'error');
+                    return;
+                }
+
+                try {
+                    const verificacion = await migrarSaludLegacy(db, { dryRun: true });
+                    ultimoReporteAuditoriaSalud = verificacion;
+                    salida.textContent = JSON.stringify({ operacion, verificacion }, null, 2);
+                    renderizarAccionesMigracion(verificacion);
+                    showToast('✅ Migración individual completada y verificada');
+                } catch (errorVerificacion) {
+                    ultimoReporteAuditoriaSalud = null;
+                    document.getElementById('auditoriaSaludAcciones').replaceChildren();
+                    salida.textContent = JSON.stringify({
+                        operacion,
+                        verificacion_error: errorVerificacion?.message || String(errorVerificacion),
+                        instruccion: 'La escritura fue confirmada. No repetir; ejecutar un nuevo DRY_RUN.'
+                    }, null, 2);
+                    showToast('Migración completada, pero la verificación falló. No repita la operación.', 'error');
+                }
+            } catch (error) {
+                console.error('Error en migración individual:', error);
+                salida.textContent = JSON.stringify({
+                    modo: 'ESCRITURA_CONTROLADA',
+                    trabajador_id: trabajadorId,
+                    error: error?.message || String(error)
+                }, null, 2);
+                showToast('La migración individual no pudo completarse.', 'error');
+                ultimoReporteAuditoriaSalud = null;
+                document.getElementById('auditoriaSaludAcciones').replaceChildren();
+            }
+        }
 
         document.getElementById('btnAuditarMigracionSalud').addEventListener('click', async () => {
             if (!esMedicoOcupacional()) {
@@ -735,10 +832,14 @@
 
             try {
                 const reporte = await migrarSaludLegacy(db, { dryRun: true });
+                ultimoReporteAuditoriaSalud = reporte;
                 salida.textContent = JSON.stringify(reporte, null, 2);
+                renderizarAccionesMigracion(reporte);
                 showToast('✅ Auditoría DRY_RUN finalizada sin escrituras');
             } catch (error) {
                 console.error('Error en auditoría DRY_RUN:', error);
+                ultimoReporteAuditoriaSalud = null;
+                document.getElementById('auditoriaSaludAcciones').replaceChildren();
                 salida.textContent = JSON.stringify({
                     modo: 'DRY_RUN',
                     error: error?.message || String(error)
