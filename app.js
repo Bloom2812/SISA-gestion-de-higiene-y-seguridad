@@ -1061,19 +1061,19 @@
 
                 if (estaArchivado) {
                     badgeArchivado = `
-                        <div style="margin-bottom: 10px;">
+                        <div class="worker-archive-badge">
                             <span class="badge badge-info">📦 Archivado</span>
                         </div>
                     `;
                     actionButtonHtml = `
-                        <button class="options-btn btn-restaurar-trabajador" data-id="${escapeHtml(t.id)}" title="Restaurar expediente" style="font-size: 1.2em; background: none; border: none; cursor: pointer;">
-                            ↩️
+                        <button class="options-btn btn-restaurar-trabajador" data-id="${escapeHtml(t.id)}" title="Restaurar expediente" aria-label="Restaurar expediente de ${escapeHtml(t.nombres)} ${escapeHtml(t.apellidos)}">
+                            <span class="material-symbols-outlined" aria-hidden="true">restore_from_trash</span>
                         </button>
                     `;
                 } else {
                     actionButtonHtml = `
-                        <button class="options-btn btn-archivar-trabajador" data-id="${escapeHtml(t.id)}" title="Archivar expediente" style="font-size: 1.2em; background: none; border: none; cursor: pointer;">
-                            📦
+                        <button class="options-btn btn-archivar-trabajador" data-id="${escapeHtml(t.id)}" title="Archivar expediente" aria-label="Archivar expediente de ${escapeHtml(t.nombres)} ${escapeHtml(t.apellidos)}">
+                            <span class="material-symbols-outlined" aria-hidden="true">archive</span>
                         </button>
                     `;
                 }
@@ -1082,34 +1082,49 @@
                 card.className = 'worker-card';
                 card.innerHTML = `
                     <div class="worker-card-header">
-                        <div class="worker-status-group">
-                            ${badgeArchivado}
-                            <div>
-                                <span class="status-label">Estado laboral:</span>
-                                <span class="badge ${colorEstadoLaboral}">${escapeHtml(estadoLaboralT)}</span>
-                            </div>
-                            <div>
-                                <span class="status-label">Vigilancia médica:</span>
-                                <span class="badge badge-${semaforo.color}">${escapeHtml(semaforo.texto)}</span>
-                            </div>
-                            <div>
-                                <span class="status-label">Aptitud ocupacional:</span>
-                                <span class="badge ${colorAptitudOcupacional}">${escapeHtml(aptitudOcupacional)}</span>
+                        <div class="worker-card-identity">
+                            ${fotoHtml}
+                            <div class="worker-card-identity-copy">
+                                <h3>${escapeHtml(t.nombres)} ${escapeHtml(t.apellidos)}</h3>
+                                <div class="role">${escapeHtml(t.puesto_trabajo)}</div>
+                                <div class="dept">
+                                    <span class="material-symbols-outlined" aria-hidden="true">apartment</span>
+                                    ${escapeHtml(t.departamento)}
+                                </div>
                             </div>
                         </div>
-                        ${actionButtonHtml}
+                        <div class="worker-card-actions">
+                            ${badgeArchivado}
+                            ${actionButtonHtml}
+                        </div>
                     </div>
 
                     <div class="worker-card-body">
-                        ${fotoHtml}
-                        <h3>${escapeHtml(t.nombres)} ${escapeHtml(t.apellidos)}</h3>
-                        <div class="role">${escapeHtml(t.puesto_trabajo)}</div>
-                        <div class="dept">🏢 ${escapeHtml(t.departamento)}</div>
+                        <div class="worker-status-group">
+                            <div class="worker-status-row">
+                                <span class="status-label">Estado laboral</span>
+                                <span class="badge ${colorEstadoLaboral}">${escapeHtml(estadoLaboralT)}</span>
+                            </div>
+                            <div class="worker-status-row">
+                                <span class="status-label">Vigilancia médica</span>
+                                <span class="badge badge-${semaforo.color}">${escapeHtml(semaforo.texto)}</span>
+                            </div>
+                            <div class="worker-status-row">
+                                <span class="status-label">Aptitud ocupacional</span>
+                                <span class="badge ${colorAptitudOcupacional}">${escapeHtml(aptitudOcupacional)}</span>
+                            </div>
+                        </div>
                     </div>
 
                     <div class="worker-card-footer">
-                        <button class="btn-profile btn-ver-perfil" data-id="${escapeHtml(t.id)}">Perfil</button>
-                        <button class="btn-history btn-ver-historial" data-id="${escapeHtml(t.id)}">Historial</button>
+                        <button class="btn-profile btn-ver-perfil" data-id="${escapeHtml(t.id)}">
+                            <span class="material-symbols-outlined" aria-hidden="true">person</span>
+                            Ver perfil completo
+                        </button>
+                        <button class="btn-history btn-ver-historial" data-id="${escapeHtml(t.id)}">
+                            <span class="material-symbols-outlined" aria-hidden="true">history</span>
+                            Ver historial
+                        </button>
                     </div>
                 `;
                 grid.appendChild(card);
