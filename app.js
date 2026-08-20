@@ -195,6 +195,7 @@
                     iniciarSuscripcionRiesgos();
                     iniciarSuscripcionAreas();
                     iniciarSuscripcionTrabajadores();
+                    iniciarSuscripcionExamenesMedicos();
 
                     if (currentUserProfile.rol === 'Administrador') {
                         iniciarSuscripcionUsuarios();
@@ -228,6 +229,13 @@
                 if(unsubscribeUsuarios) unsubscribeUsuarios();
                 if(unsubscribeAreas) unsubscribeAreas();
                 if(unsubscribeTrabajadores) unsubscribeTrabajadores();
+                if(unsubscribeExamenesMedicos) unsubscribeExamenesMedicos();
+
+                unsubscribeRiesgos = null;
+                unsubscribeUsuarios = null;
+                unsubscribeAreas = null;
+                unsubscribeTrabajadores = null;
+                unsubscribeExamenesMedicos = null;
             }
         });
 
@@ -587,6 +595,21 @@
         const coleccionTrabajadores = collection(db, 'artifacts', appId, 'public', 'data', 'trabajadores');
         let unsubscribeTrabajadores = null;
 
+        const coleccionExamenesMedicos = collection(db, 'artifacts', appId, 'public', 'data', 'examenes_medicos');
+        let unsubscribeExamenesMedicos = null;
+        let cacheExamenesPorTrabajador = {};
+
+        function obtenerExamenesTrabajador(t) {
+            const nuevos = cacheExamenesPorTrabajador[t.id] || [];
+
+            if (t.examenes_version === 2) {
+                return nuevos;
+            }
+
+            const legacy = Array.isArray(t.examenes) ? t.examenes : [];
+            return [...legacy, ...nuevos];
+        }
+
         // Variables en memoria para listas dinámicas (Paso 2 y 3)
         let t_alergias_array = [];
         let t_condiciones_array = [];
@@ -763,11 +786,15 @@
             } else {
                 t_examenes_array.forEach((ex, index) => {
                     const tr = document.createElement('tr');
+                    const accionHtml = (ex.origen_ui === 'nuevo')
+                        ? `<button type="button" class="btn btn-sm btn-danger" onclick="window.removeExamen(${index})">🗑️</button>`
+                        : `<span class="badge badge-info">Registrado</span>`;
+
                     tr.innerHTML = `
                         <td>${ex.tipo}</td>
                         <td>${ex.realizacion}</td>
                         <td>${ex.vencimiento}</td>
-                        <td><button type="button" class="btn btn-sm btn-danger" onclick="window.removeExamen(${index})">🗑️</button></td>
+                        <td>${accionHtml}</td>
                     `;
                     tbodyExamenes.appendChild(tr);
                 });
@@ -810,7 +837,13 @@
                 return;
             }
 
-            t_examenes_array.push({ tipo, realizacion, vencimiento });
+            t_examenes_array.push({
+                id: null,
+                tipo,
+                realizacion,
+                vencimiento,
+                origen_ui: 'nuevo'
+            });
             document.getElementById('t_examen_realizacion').value = '';
             document.getElementById('t_examen_vencimiento').value = '';
             renderArrays();
@@ -869,7 +902,8 @@
 
             // Aplicar filtros
             const filtrados = trabajadoresArray.filter(t => {
-                const semaforo = evaluarSemaforoMedico(t.examenes);
+                const examenes = obtenerExamenesTrabajador(t);
+                const semaforo = evaluarSemaforoMedico(examenes);
                 const nombreCompleto = `${t.nombres} ${t.apellidos}`.toLowerCase();
 
                 const cumpleBusqueda = filtrosTrabajadores.busqueda === '' ||
@@ -907,7 +941,8 @@
             }
 
             filtrados.forEach((t) => {
-                const semaforo = evaluarSemaforoMedico(t.examenes);
+                const examenes = obtenerExamenesTrabajador(t);
+                const semaforo = evaluarSemaforoMedico(examenes);
                 const fotoHtml = t.fotografia_url ?
                     `<img src="${t.fotografia_url}" alt="Foto de ${t.nombres}">` :
                     `<div class="avatar-placeholder">👤</div>`;
@@ -1064,6 +1099,15 @@
         }
 
 
+        let trabajadoresCargados = false;
+        let examenesCargados = false;
+
+        function renderizarTrabajadoresSiListo() {
+            if (trabajadoresCargados && examenesCargados) {
+                renderizarTarjetasTrabajadores();
+            }
+        }
+
         function iniciarSuscripcionTrabajadores() {
             if (!currentUser) return;
 
@@ -1078,10 +1122,38 @@
                     cacheTrabajadores[id] = { ...data, id };
                 });
 
-                renderizarTarjetasTrabajadores();
+                trabajadoresCargados = true;
+                renderizarTrabajadoresSiListo();
 
             }, (error) => {
                 console.error("Error al cargar trabajadores:", error);
+            });
+        }
+
+        function iniciarSuscripcionExamenesMedicos() {
+            if (!currentUser) return;
+
+            unsubscribeExamenesMedicos = onSnapshot(coleccionExamenesMedicos, (snapshot) => {
+                cacheExamenesPorTrabajador = {};
+
+                snapshot.forEach(docSnap => {
+                    const examen = {
+                        id: docSnap.id,
+                        ...docSnap.data()
+                    };
+
+                    const trabajadorId = examen.trabajador_id;
+                    if (!cacheExamenesPorTrabajador[trabajadorId]) {
+                        cacheExamenesPorTrabajador[trabajadorId] = [];
+                    }
+                    cacheExamenesPorTrabajador[trabajadorId].push(examen);
+                });
+
+                examenesCargados = true;
+                renderizarTrabajadoresSiListo();
+
+            }, (error) => {
+                console.error("Error al cargar examenes medicos:", error);
             });
         }
 
@@ -1254,7 +1326,8 @@
             if (estadoLaboralT === 'Activo') colorEstadoLaboral = 'badge-success';
             else if (estadoLaboralT === 'Retirado') colorEstadoLaboral = 'badge-info';
 
-            const semaforo = evaluarSemaforoMedico(t.examenes);
+            const examenes = obtenerExamenesTrabajador(t);
+            const semaforo = evaluarSemaforoMedico(examenes);
 
             document.getElementById('p_estado_laboral').innerHTML = `<span class="badge ${colorEstadoLaboral}">${estadoLaboralT}</span>`;
             document.getElementById('p_estado_vigilancia_medica').innerHTML = `<span class="badge badge-${semaforo.color}">${semaforo.texto}</span>`;
@@ -1273,11 +1346,11 @@
             // Historial de Exámenes
             const tbody = document.getElementById('p_examenes_table');
             tbody.innerHTML = '';
-            if(!t.examenes || t.examenes.length === 0) {
+            if(!examenes || examenes.length === 0) {
                 tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;">Sin registro de exámenes</td></tr>';
             } else {
                 // Ordenar por fecha de realización descendente
-                const examenesOrdenados = [...t.examenes].sort((a,b) => new Date(b.realizacion) - new Date(a.realizacion));
+                const examenesOrdenados = [...examenes].sort((a,b) => new Date(b.realizacion) - new Date(a.realizacion));
                 const hoy = new Date();
 
                 examenesOrdenados.forEach(ex => {
@@ -1456,7 +1529,10 @@
 
             t_alergias_array = t.alergias ? [...t.alergias] : [];
             t_condiciones_array = t.condiciones_medicas ? [...t.condiciones_medicas] : [];
-            t_examenes_array = t.examenes ? [...t.examenes] : [];
+            t_examenes_array = obtenerExamenesTrabajador(t).map(ex => ({
+                ...ex,
+                origen_ui: 'persistido'
+            }));
 
             renderArrays();
 
@@ -1619,7 +1695,6 @@
 
                     talla_ropa: document.getElementById('t_talla_ropa').value,
                     talla_calzado: document.getElementById('t_talla_calzado').value,
-                    examenes: t_examenes_array,
 
                     aptitud_ocupacional: aptitudOcupacional,
                     aptitud_fecha: aptitudFecha,
@@ -1633,6 +1708,8 @@
                 if(fotoUrl) trabajadorData.fotografia_url = fotoUrl;
 
                 const batch = writeBatch(db);
+
+                const examenesNuevos = t_examenes_array.filter(ex => ex.origen_ui === 'nuevo');
 
                 if (id) {
                     // Editar existente
@@ -1680,6 +1757,20 @@
 
                     batch.update(trabajadorRef, trabajadorData);
 
+                    examenesNuevos.forEach(examen => {
+                        const examenRef = doc(coleccionExamenesMedicos);
+                        batch.set(examenRef, {
+                            trabajador_id: trabajadorRef.id,
+                            tipo: examen.tipo,
+                            realizacion: examen.realizacion,
+                            vencimiento: examen.vencimiento,
+                            fecha_creacion: serverTimestamp(),
+                            creado_por_uid: currentUser?.uid || null,
+                            creado_por_nombre: currentUserProfile?.nombre || 'Usuario',
+                            origen: 'registro'
+                        });
+                    });
+
                     await batch.commit();
                     showToast('✅ Trabajador actualizado exitosamente');
                 } else {
@@ -1687,6 +1778,7 @@
                     const trabajadorRef = doc(coleccionTrabajadores);
                     trabajadorData.fechaCreacion = new Date().toISOString();
                     trabajadorData.archivado = false;
+                    trabajadorData.examenes_version = 2;
 
                     const eventoCreacion = crearDatosEventoHistorial('CREACION_EXPEDIENTE', 'Expediente Creado', {
                         estado_laboral: trabajadorData.estado_laboral,
@@ -1699,6 +1791,20 @@
 
                     batch.set(trabajadorRef, trabajadorData);
                     batch.set(doc(historialRefBase), eventoCreacion);
+
+                    examenesNuevos.forEach(examen => {
+                        const examenRef = doc(coleccionExamenesMedicos);
+                        batch.set(examenRef, {
+                            trabajador_id: trabajadorRef.id,
+                            tipo: examen.tipo,
+                            realizacion: examen.realizacion,
+                            vencimiento: examen.vencimiento,
+                            fecha_creacion: serverTimestamp(),
+                            creado_por_uid: currentUser?.uid || null,
+                            creado_por_nombre: currentUserProfile?.nombre || 'Usuario',
+                            origen: 'registro'
+                        });
+                    });
 
                     await batch.commit();
                     showToast('✅ Trabajador registrado exitosamente');
