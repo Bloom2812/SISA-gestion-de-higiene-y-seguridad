@@ -4,6 +4,7 @@
         import { getFirestore, collection, addDoc, onSnapshot, deleteDoc, doc, updateDoc, setDoc, query, where, getDocs, getDoc, writeBatch, serverTimestamp, orderBy } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
         import { migrarSaludLegacy } from "./scripts/migrar-salud-legacy.js";
         import { auditarLimpiezaSaludLegacy } from "./scripts/auditar-limpieza-salud-legacy.js";
+        import { repararSaludClinicaFaltante, EXPEDIENTE_REPARABLE } from "./scripts/reparar-salud-clinica-faltante.js";
 
         // ==========================================================
         // ⚠️ PEGA AQUÍ TU CONFIGURACIÓN DE FIREBASE ⚠️
@@ -98,6 +99,7 @@
                 document.getElementById('auditoriaSaludSalida').textContent = '';
                 document.getElementById('auditoriaSaludAcciones').replaceChildren();
                 ultimoReporteAuditoriaSalud = null;
+                ultimoReporteAuditoriaLimpieza = null;
             }
 
             if (botonPasoExamenes) {
@@ -723,6 +725,7 @@
         let t_condiciones_array = [];
         let t_examenes_array = [];
         let ultimoReporteAuditoriaSalud = null;
+        let ultimoReporteAuditoriaLimpieza = null;
 
         function renderizarAccionesMigracion(reporte) {
             const contenedor = document.getElementById('auditoriaSaludAcciones');
@@ -749,6 +752,92 @@
                 fila.append(detalle, boton);
                 contenedor.appendChild(fila);
             });
+        }
+
+        function renderizarAccionReparacionClinica(reporte) {
+            const contenedor = document.getElementById('auditoriaSaludAcciones');
+            contenedor.replaceChildren();
+
+            const bloqueado = (reporte?.bloqueados || []).find(item =>
+                item.trabajador_id === EXPEDIENTE_REPARABLE
+                && item.marcador_migracion_valido === true
+                && item.destinos_faltantes?.length === 1
+                && item.destinos_faltantes[0] === 'salud_clinica'
+            );
+            if (!bloqueado) return;
+
+            const fila = document.createElement('div');
+            fila.style.cssText = 'display:flex; justify-content:space-between; gap:16px; align-items:center; padding:12px; border:1px solid #f59e0b; border-radius:8px; margin-top:10px;';
+
+            const detalle = document.createElement('span');
+            detalle.textContent = `ID: ${bloqueado.trabajador_id} · Destino faltante: salud_clinica`;
+
+            const boton = document.createElement('button');
+            boton.type = 'button';
+            boton.className = 'btn btn-warning btn-reparar-salud-clinica';
+            boton.textContent = 'Reparar solo este destino';
+            boton.addEventListener('click', () => repararDestinoClinicoControlado(bloqueado.trabajador_id));
+
+            fila.append(detalle, boton);
+            contenedor.appendChild(fila);
+        }
+
+        async function repararDestinoClinicoControlado(trabajadorId) {
+            if (!esMedicoOcupacional()) {
+                showToast('Solo el Médico Ocupacional puede ejecutar esta reparación.', 'error');
+                return;
+            }
+
+            const autorizado = ultimoReporteAuditoriaLimpieza?.bloqueados?.some(item =>
+                item.trabajador_id === trabajadorId
+                && item.marcador_migracion_valido === true
+                && item.destinos_faltantes?.length === 1
+                && item.destinos_faltantes[0] === 'salud_clinica'
+            );
+            if (!autorizado || trabajadorId !== EXPEDIENTE_REPARABLE) {
+                showToast('El expediente no pertenece al último reporte autorizado.', 'error');
+                return;
+            }
+
+            const confirmacionRequerida = `REPARAR SALUD_CLINICA ${trabajadorId}`;
+            const confirmacion = window.prompt(
+                `Se creará únicamente el destino salud_clinica de ${trabajadorId}. No se eliminarán campos legacy.\n\nEscriba exactamente: ${confirmacionRequerida}`
+            );
+            if (confirmacion !== confirmacionRequerida) {
+                showToast('Reparación cancelada: la confirmación no coincide.', 'error');
+                return;
+            }
+
+            const salida = document.getElementById('auditoriaSaludSalida');
+            document.querySelectorAll('.btn-reparar-salud-clinica').forEach(boton => { boton.disabled = true; });
+            salida.textContent = `Reparando exclusivamente salud_clinica/${trabajadorId}...`;
+
+            try {
+                const operacion = await repararSaludClinicaFaltante(db, trabajadorId);
+                const verificacion = await auditarLimpiezaSaludLegacy(db);
+                ultimoReporteAuditoriaLimpieza = verificacion;
+                salida.textContent = JSON.stringify({ operacion, verificacion }, null, 2);
+                renderizarAccionReparacionClinica(verificacion);
+
+                const listoParaLimpieza = verificacion.listos_para_limpieza
+                    .some(item => item.trabajador_id === trabajadorId);
+                if (!listoParaLimpieza || verificacion.errores.length > 0) {
+                    showToast('El destino fue creado, pero la auditoría no confirmó equivalencia.', 'error');
+                    return;
+                }
+                showToast('✅ Destino clínico reparado y equivalencia verificada');
+            } catch (error) {
+                console.error('Error en reparación de salud clínica:', error);
+                ultimoReporteAuditoriaLimpieza = null;
+                document.getElementById('auditoriaSaludAcciones').replaceChildren();
+                salida.textContent = JSON.stringify({
+                    modo: 'REPARACION_CONTROLADA_SALUD_CLINICA',
+                    trabajador_id: trabajadorId,
+                    error: error?.message || String(error),
+                    instruccion: 'No repetir sin ejecutar una nueva auditoría de limpieza.'
+                }, null, 2);
+                showToast('La reparación no pudo confirmarse.', 'error');
+            }
         }
 
         async function migrarCandidatoControlado(trabajadorId) {
@@ -869,11 +958,14 @@
             panel.style.display = 'block';
             salida.textContent = 'Auditando equivalencia sin modificar Firestore...';
             ultimoReporteAuditoriaSalud = null;
+            ultimoReporteAuditoriaLimpieza = null;
             document.getElementById('auditoriaSaludAcciones').replaceChildren();
 
             try {
                 const reporte = await auditarLimpiezaSaludLegacy(db);
+                ultimoReporteAuditoriaLimpieza = reporte;
                 salida.textContent = JSON.stringify(reporte, null, 2);
+                renderizarAccionReparacionClinica(reporte);
                 showToast('✅ Auditoría de limpieza finalizada sin escrituras');
             } catch (error) {
                 console.error('Error en auditoría de limpieza legacy:', error);
@@ -881,6 +973,7 @@
                     modo: 'AUDITORIA_LIMPIEZA_SOLO_LECTURA',
                     error: error?.message || String(error)
                 }, null, 2);
+                ultimoReporteAuditoriaLimpieza = null;
                 showToast('No fue posible auditar la limpieza legacy.', 'error');
             } finally {
                 btn.disabled = false;
