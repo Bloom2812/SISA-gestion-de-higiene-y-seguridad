@@ -57,3 +57,8 @@ La interfaz permite auditar en `DRY_RUN` y, posteriormente, migrar un solo ID
 devuelto por el último reporte. La escritura individual exige confirmar el ID
 exacto, vuelve a ejecutar el `DRY_RUN` después de la operación y nunca elimina
 los campos legacy.
+
+Antes de cualquier eliminación, `auditarLimpiezaSaludLegacy` compara cada
+campo legacy con su documento destino. El reporte solo incluye IDs y nombres
+de campos; bloquea destinos ausentes, valores diferentes o expedientes sin el
+marcador `salud_separada_version: 1`.
