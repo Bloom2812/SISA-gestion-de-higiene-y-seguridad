@@ -1,0 +1,50 @@
+name: Salud Ocupacional - Seguridad
+
+on:
+  pull_request:
+  push:
+    branches:
+      - "security/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  security-tests:
+    name: Reglas, permisos y migración
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Descargar repositorio
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Configurar Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Instalar dependencias
+        run: npm install --no-audit --no-fund
+
+      - name: Validar sintaxis JavaScript
+        run: |
+          node --check app.js
+          node --check scripts/migrar-salud-legacy.js
+
+      - name: Ejecutar controles estáticos
+        run: |
+          bash test_firestore_rules_security.sh
+          bash test_ui_health_permissions.sh
+          bash test_migracion_salud.sh
+          bash test_xss_salud.sh
+
+      - name: Ejecutar Firebase Emulator
+        run: npm run test:rules

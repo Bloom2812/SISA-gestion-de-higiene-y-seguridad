@@ -1494,9 +1494,9 @@
 
                     const tr = document.createElement('tr');
                     tr.innerHTML = `
-                        <td>${ex.tipo}</td>
-                        <td>${ex.realizacion}</td>
-                        <td>${ex.vencimiento}</td>
+                        <td>${escapeHtml(ex.tipo)}</td>
+                        <td>${escapeHtml(ex.realizacion)}</td>
+                        <td>${escapeHtml(ex.vencimiento)}</td>
                         <td>${badge}</td>
                     `;
                     tbody.appendChild(tr);
