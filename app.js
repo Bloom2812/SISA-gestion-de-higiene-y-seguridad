@@ -3,6 +3,7 @@
         import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, collection, addDoc, onSnapshot, deleteDoc, doc, updateDoc, setDoc, query, where, getDocs, getDoc, writeBatch, serverTimestamp, orderBy } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
         import { migrarSaludLegacy } from "./scripts/migrar-salud-legacy.js";
+        import { auditarLimpiezaSaludLegacy } from "./scripts/auditar-limpieza-salud-legacy.js";
 
         // ==========================================================
         // ⚠️ PEGA AQUÍ TU CONFIGURACIÓN DE FIREBASE ⚠️
@@ -83,6 +84,7 @@
             const perfilClinico = document.getElementById('seccionPerfilClinico');
             const observacionesClinicas = document.getElementById('perfilAptitudObservaciones');
             const botonAuditoria = document.getElementById('btnAuditarMigracionSalud');
+            const botonAuditoriaLimpieza = document.getElementById('btnAuditarLimpiezaSalud');
             const resultadoAuditoria = document.getElementById('resultadoAuditoriaSalud');
 
             if (botonPasoMedico) botonPasoMedico.style.display = esMedico ? '' : 'none';
@@ -90,6 +92,7 @@
             if (perfilClinico) perfilClinico.style.display = esMedico ? '' : 'none';
             if (observacionesClinicas) observacionesClinicas.style.display = esMedico ? '' : 'none';
             if (botonAuditoria) botonAuditoria.style.display = esMedico ? '' : 'none';
+            if (botonAuditoriaLimpieza) botonAuditoriaLimpieza.style.display = esMedico ? '' : 'none';
             if (resultadoAuditoria && !esMedico) {
                 resultadoAuditoria.style.display = 'none';
                 document.getElementById('auditoriaSaludSalida').textContent = '';
@@ -848,6 +851,40 @@
             } finally {
                 btn.disabled = false;
                 btn.textContent = '🔎 Auditar migración (solo lectura)';
+            }
+        });
+
+        document.getElementById('btnAuditarLimpiezaSalud').addEventListener('click', async () => {
+            if (!esMedicoOcupacional()) {
+                showToast('Solo el Médico Ocupacional puede auditar la limpieza legacy.', 'error');
+                return;
+            }
+
+            const btn = document.getElementById('btnAuditarLimpiezaSalud');
+            const panel = document.getElementById('resultadoAuditoriaSalud');
+            const salida = document.getElementById('auditoriaSaludSalida');
+
+            btn.disabled = true;
+            btn.textContent = '⏳ Comparando origen y destino...';
+            panel.style.display = 'block';
+            salida.textContent = 'Auditando equivalencia sin modificar Firestore...';
+            ultimoReporteAuditoriaSalud = null;
+            document.getElementById('auditoriaSaludAcciones').replaceChildren();
+
+            try {
+                const reporte = await auditarLimpiezaSaludLegacy(db);
+                salida.textContent = JSON.stringify(reporte, null, 2);
+                showToast('✅ Auditoría de limpieza finalizada sin escrituras');
+            } catch (error) {
+                console.error('Error en auditoría de limpieza legacy:', error);
+                salida.textContent = JSON.stringify({
+                    modo: 'AUDITORIA_LIMPIEZA_SOLO_LECTURA',
+                    error: error?.message || String(error)
+                }, null, 2);
+                showToast('No fue posible auditar la limpieza legacy.', 'error');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '🧹 Auditar limpieza legacy';
             }
         });
 
