@@ -44,6 +44,7 @@ jobs:
           bash test_ui_health_permissions.sh
           bash test_salud_sin_herramientas_legacy.sh
           bash test_xss_salud.sh
+          bash test_ui_incidentes.sh
 
       - name: Ejecutar Firebase Emulator
         run: npm run test:rules
