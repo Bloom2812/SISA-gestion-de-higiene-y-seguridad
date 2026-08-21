@@ -13,7 +13,7 @@
         }
 
         /* ===== MÓDULO DE INCIDENTES ===== */
-        #page-incidentes { margin-top:-12px; }
+        #page-incidentes { margin-top:0; }
         .incident-page-header { display:flex; align-items:center; justify-content:space-between; gap:24px; margin-bottom:16px; padding:16px 18px; background:#fff; border:1px solid #e2e8f0; border-radius:16px; box-shadow:0 6px 20px rgba(15,23,42,.04); }
         .incident-page-heading { display:flex; align-items:center; gap:14px; min-width:0; }
         .incident-page-icon { display:grid; place-items:center; flex:0 0 46px; width:46px; height:46px; border-radius:14px; background:#eff6ff; color:#2563eb; font-size:22px; }
