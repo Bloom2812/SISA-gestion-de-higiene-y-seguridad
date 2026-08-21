@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>SISA - Sistema Integral de Seguridad y Ambiente</title>
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
-    <link rel="stylesheet" href="styles.css?v=20260821.5" />
+    <link rel="stylesheet" href="styles.css?v=20260821.6" />
 </head>
 <body>
 
@@ -131,8 +131,8 @@
                 <!-- ========================================================= -->
                 <div class="page active" id="page-dashboard">
 
-                    <div class="flex-between mb-4">
-                        <h2 style="font-size:24px;">Panel de Control</h2>
+                    <div class="dashboard-heading">
+                        <div><p class="dashboard-eyebrow">VISIÓN OPERATIVA</p><h2>Panel de Control</h2><span>Indicadores consolidados en tiempo real</span></div>
                         <button class="btn btn-primary" id="btnNuevaActaDash">📄 Nueva Acta</button>
                     </div>
 
@@ -140,43 +140,35 @@
                     <div class="grid-4">
                         <div class="stat-card">
                             <div class="label">📋 Total Actas</div>
-                            <div class="value">24</div>
-                            <div class="sub">▲ 3 este mes</div>
+                            <div class="value" id="dashTotalActas">0</div>
+                            <div class="sub" id="dashActasMes">0 este mes</div>
                         </div>
                         <div class="stat-card danger">
                             <div class="label">⚠️ Riesgos Críticos</div>
-                            <div class="value">3</div>
-                            <div class="sub" style="color:#ef4444;">Atención inmediata</div>
+                            <div class="value" id="dashRiesgosCriticos">0</div>
+                            <div class="sub" id="dashRiesgosSub">Sin riesgos críticos activos</div>
                         </div>
                         <div class="stat-card success">
-                            <div class="label">👥 Trabajadores</div>
-                            <div class="value">156</div>
-                            <div class="sub">▲ 2 nuevos</div>
+                            <div class="label">🚨 Incidentes activos</div>
+                            <div class="value" id="dashIncidentesActivos">0</div>
+                            <div class="sub" id="dashIncidentesSub">Sin eventos abiertos</div>
                         </div>
                         <div class="stat-card purple">
                             <div class="label">🛡️ Días sin accidentes</div>
-                            <div class="value">187</div>
-                            <div class="sub" style="color:#8b5cf6;">¡Excelente!</div>
+                            <div class="value" id="dashDiasSinAccidentes">—</div>
+                            <div class="sub" id="dashAccidentesSub">Sin accidentes registrados</div>
                         </div>
                     </div>
 
-                    <!-- Alertas y gráfico simulado -->
-                    <div class="grid-2 mt-4">
-                        <div class="card">
-                            <div class="card-title">🚨 Alertas Activas</div>
-                            <div class="alert alert-danger">🔴 Ruido excesivo - Sala Calderas <span style="margin-left:auto;font-size:12px;">Hoy</span></div>
-                            <div class="alert alert-warning">🟡 Falta de extintores - Planta Baja <span style="margin-left:auto;font-size:12px;">Mañana</span></div>
-                            <div class="alert alert-warning">🟡 Capacitación en alturas vencida <span style="margin-left:auto;font-size:12px;">5 días</span></div>
+                    <div class="grid-2 mt-4 dashboard-grid">
+                        <div class="card dashboard-card">
+                            <div class="dashboard-card-header"><div class="card-title">🚨 Alertas operativas</div><span id="dashAlertCount" class="dashboard-count">0</span></div>
+                            <div id="dashboardAlertas" class="dashboard-alert-list"><div class="dashboard-empty">Cargando alertas…</div></div>
                         </div>
 
-                        <div class="card">
-                            <div class="card-title">📈 Evolución mensual</div>
-                            <div style="height:140px;display:flex;align-items:flex-end;justify-content:space-around;gap:8px;padding-top:12px;">
-                                <!-- Barras simuladas -->
-                                <div style="flex:1;text-align:center;"><div style="height:60px;background:#ef4444;border-radius:4px 4px 0 0;width:100%;"></div><div style="height:40px;background:#22c55e;border-radius:4px 4px 0 0;width:100%;margin-top:4px;"></div><div style="font-size:11px;color:#6b7280;margin-top:4px;">Ene</div></div>
-                                <div style="flex:1;text-align:center;"><div style="height:75px;background:#ef4444;border-radius:4px 4px 0 0;width:100%;"></div><div style="height:50px;background:#22c55e;border-radius:4px 4px 0 0;width:100%;margin-top:4px;"></div><div style="font-size:11px;color:#6b7280;margin-top:4px;">Feb</div></div>
-                                <div style="flex:1;text-align:center;"><div style="height:50px;background:#ef4444;border-radius:4px 4px 0 0;width:100%;"></div><div style="height:60px;background:#22c55e;border-radius:4px 4px 0 0;width:100%;margin-top:4px;"></div><div style="font-size:11px;color:#6b7280;margin-top:4px;">Mar</div></div>
-                            </div>
+                        <div class="card dashboard-card">
+                            <div class="dashboard-card-header"><div class="card-title">📈 Actividad de los últimos 6 meses</div><div class="dashboard-legend"><span><i class="incident-dot"></i>Incidentes</span><span><i class="training-dot"></i>Capacitaciones</span></div></div>
+                            <div id="dashboardEvolucion" class="dashboard-chart" aria-label="Incidentes y capacitaciones por mes"></div>
                         </div>
                     </div>
                 </div>
@@ -1030,6 +1022,6 @@
     <!-- ========================================================= -->
     <!-- ====== JAVASCRIPT CON FIREBASE ====== -->
     <!-- ========================================================= -->
-    <script type="module" src="app.js?v=20260821.4"></script>
+    <script type="module" src="app.js?v=20260821.5"></script>
 </body>
 </html>

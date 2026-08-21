@@ -169,6 +169,47 @@
             return '';
         }
 
+        function fechaNormalizada(valor) {
+            if (!valor) return null;
+            const fecha = valor.toDate ? valor.toDate() : new Date(valor);
+            return Number.isNaN(fecha.getTime()) ? null : fecha;
+        }
+
+        function mismoMes(fecha, referencia = new Date()) {
+            return fecha && fecha.getFullYear() === referencia.getFullYear() && fecha.getMonth() === referencia.getMonth();
+        }
+
+        function renderizarDashboard() {
+            if (typeof cacheActas === 'undefined' || typeof cacheRiesgos === 'undefined' || typeof cacheIncidentes === 'undefined' || typeof cacheCapacitaciones === 'undefined') return;
+            const ahora = new Date();
+            const riesgosCriticos = cacheRiesgos.filter(r => (r.estado || 'Identificado') !== 'Archivado' && resumenRiesgo(r).prioridad === 'Crítica');
+            const incidentesActivos = cacheIncidentes.filter(i => i.estado !== 'Cerrado');
+            const accidentes = cacheIncidentes.filter(i => i.tipo === 'Accidente').map(i => fechaNormalizada(i.fecha_evento)).filter(Boolean).sort((a, b) => b - a);
+            const diasSinAccidentes = accidentes.length ? Math.max(0, Math.floor((ahora - accidentes[0]) / 86400000)) : null;
+            document.getElementById('dashTotalActas').textContent = cacheActas.length;
+            document.getElementById('dashActasMes').textContent = `${cacheActas.filter(a => mismoMes(fechaNormalizada(a.fecha_reunion), ahora)).length} este mes`;
+            document.getElementById('dashRiesgosCriticos').textContent = riesgosCriticos.length;
+            document.getElementById('dashRiesgosSub').textContent = riesgosCriticos.length ? 'Requieren atención inmediata' : 'Sin riesgos críticos activos';
+            document.getElementById('dashIncidentesActivos').textContent = incidentesActivos.length;
+            document.getElementById('dashIncidentesSub').textContent = incidentesActivos.length ? `${incidentesActivos.filter(i => i.estado === 'En investigación').length} en investigación` : 'Sin eventos abiertos';
+            document.getElementById('dashDiasSinAccidentes').textContent = diasSinAccidentes ?? '—';
+            document.getElementById('dashAccidentesSub').textContent = accidentes.length ? `Último: ${fechaIncidente(accidentes[0])}` : 'Sin accidentes registrados';
+
+            const alertas = [];
+            cacheRiesgos.filter(r => fechaRiesgoVencida(r)).forEach(r => alertas.push({ nivel: 'danger', texto: `Riesgo vencido: ${r.peligro}`, contexto: r.area_nombre || r.area || 'Sin área' }));
+            cacheCapacitaciones.filter(c => c.estado === 'Programada' && fechaNormalizada(c.fecha_inicio) < ahora).forEach(c => alertas.push({ nivel: 'warning', texto: `Capacitación vencida: ${c.titulo}`, contexto: c.area_nombre || c.alcance }));
+            cacheActas.forEach(a => (a.compromisos || []).filter(compromisoVencido).forEach(c => alertas.push({ nivel: 'warning', texto: `Compromiso vencido: ${c.descripcion}`, contexto: a.codigo })));
+            incidentesActivos.filter(i => ['Alta', 'Crítica'].includes(i.gravedad)).forEach(i => alertas.push({ nivel: 'danger', texto: `${i.gravedad}: ${i.descripcion}`, contexto: i.codigo }));
+            const alertasVisibles = alertas.slice(0, 6);
+            document.getElementById('dashAlertCount').textContent = alertas.length;
+            document.getElementById('dashboardAlertas').innerHTML = alertasVisibles.length ? alertasVisibles.map(a => `<div class="dashboard-alert dashboard-alert-${a.nivel}"><span class="dashboard-alert-icon">${a.nivel === 'danger' ? '!' : '•'}</span><div><strong>${escapeHtml(a.texto)}</strong><small>${escapeHtml(a.contexto || '')}</small></div></div>`).join('') : '<div class="dashboard-empty dashboard-empty-ok"><strong>Sin alertas críticas</strong><span>No hay vencimientos ni eventos prioritarios registrados.</span></div>';
+
+            const meses = Array.from({ length: 6 }, (_, indice) => { const fecha = new Date(ahora.getFullYear(), ahora.getMonth() - (5 - indice), 1); return { fecha, clave: `${fecha.getFullYear()}-${fecha.getMonth()}`, etiqueta: new Intl.DateTimeFormat('es-HN', { month: 'short' }).format(fecha).replace('.', '') }; });
+            const datos = meses.map(m => ({ ...m, incidentes: cacheIncidentes.filter(i => { const f = fechaNormalizada(i.fecha_evento); return f && `${f.getFullYear()}-${f.getMonth()}` === m.clave; }).length, capacitaciones: cacheCapacitaciones.filter(c => { const f = fechaNormalizada(c.fecha_inicio); return f && `${f.getFullYear()}-${f.getMonth()}` === m.clave && c.estado === 'Completada'; }).length }));
+            const maximo = Math.max(1, ...datos.flatMap(d => [d.incidentes, d.capacitaciones]));
+            document.getElementById('dashboardEvolucion').innerHTML = datos.map(d => `<div class="dashboard-month"><div class="dashboard-bars"><div class="dashboard-bar dashboard-bar-incident" style="height:${Math.max(d.incidentes ? 12 : 2, d.incidentes / maximo * 110)}px" title="${d.incidentes} incidentes"><span>${d.incidentes || ''}</span></div><div class="dashboard-bar dashboard-bar-training" style="height:${Math.max(d.capacitaciones ? 12 : 2, d.capacitaciones / maximo * 110)}px" title="${d.capacitaciones} capacitaciones completadas"><span>${d.capacitaciones || ''}</span></div></div><small>${escapeHtml(d.etiqueta)}</small></div>`).join('');
+        }
+
         // ============================================================
         // 2. AUTENTICACIÓN (LOGIN/LOGOUT CON FIREBASE)
         // ============================================================
@@ -400,6 +441,7 @@
             unsubscribeRiesgos = onSnapshot(coleccionRiesgos, (snapshot) => {
                 cacheRiesgos = snapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() }));
                 renderRiesgos();
+                renderizarDashboard();
             }, (error) => {
                 console.error("Error de Snapshot:", error);
                 showToast("Error al leer datos en tiempo real", "error");
@@ -2257,6 +2299,7 @@
             unsubscribeIncidentes = onSnapshot(coleccionIncidentes, snapshot => {
                 cacheIncidentes = snapshot.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => (b.fecha_evento?.seconds || 0) - (a.fecha_evento?.seconds || 0));
                 renderizarIncidentes();
+                renderizarDashboard();
             }, error => {
                 console.error('Error al leer incidentes:', error);
                 showToast('No fue posible cargar los incidentes.', 'error');
@@ -2615,6 +2658,7 @@
                 cacheCapacitaciones = snapshot.docs.map(d => ({ id: d.id, ...d.data() }))
                     .sort((a, b) => (b.fecha_inicio?.seconds || 0) - (a.fecha_inicio?.seconds || 0));
                 actualizarFiltroValorCapacitaciones();
+                renderizarDashboard();
             }, error => {
                 console.error('Error al leer capacitaciones:', error);
                 showToast('No fue posible cargar las capacitaciones.', 'error');
@@ -2745,6 +2789,7 @@
             unsubscribeActas = onSnapshot(coleccionActas, snapshot => {
                 cacheActas = snapshot.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => (b.fecha_reunion?.seconds || 0) - (a.fecha_reunion?.seconds || 0));
                 renderizarActas();
+                renderizarDashboard();
             }, error => { console.error('Error al leer actas:', error); showToast('No fue posible cargar las actas.', 'error'); });
         }
 
