@@ -1825,6 +1825,68 @@
         @media (max-width:900px) { .minutes-stats{grid-template-columns:repeat(2,1fr)} .minutes-toolbar{grid-template-columns:1fr} .minutes-detail-grid{grid-template-columns:repeat(2,1fr)} }
         @media (max-width:600px) { .minutes-hero{align-items:flex-start;flex-wrap:wrap} .minutes-hero .btn{width:100%;margin-left:0} .minutes-stats,.minutes-detail-grid{grid-template-columns:1fr} }
 
+        /* --- Diálogos institucionales de confirmación --- */
+        .app-confirm-overlay {
+            position:fixed;
+            inset:0;
+            z-index:12000;
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            padding:24px;
+            background:rgba(15,23,42,.58);
+            backdrop-filter:blur(3px);
+            opacity:0;
+            visibility:hidden;
+            transition:opacity .18s ease, visibility .18s ease;
+        }
+        .app-confirm-overlay.show { opacity:1; visibility:visible; }
+        .app-confirm-dialog {
+            display:grid;
+            grid-template-columns:56px minmax(0,1fr);
+            gap:0 18px;
+            width:min(520px,100%);
+            padding:26px;
+            border:1px solid #dbe4ef;
+            border-radius:20px;
+            background:#fff;
+            box-shadow:0 24px 70px rgba(15,23,42,.3);
+            transform:translateY(12px) scale(.98);
+            transition:transform .18s ease;
+        }
+        .app-confirm-overlay.show .app-confirm-dialog { transform:translateY(0) scale(1); }
+        .app-confirm-icon {
+            display:grid;
+            place-items:center;
+            width:56px;
+            height:56px;
+            border-radius:16px;
+            background:#eaf1ff;
+            color:#2563eb;
+            font-size:26px;
+            font-weight:800;
+        }
+        .app-confirm-eyebrow { margin:1px 0 5px; color:#2563eb; font-size:11px; font-weight:800; letter-spacing:.11em; text-transform:uppercase; }
+        .app-confirm-copy h2 { margin:0 0 9px; color:#10213a; font-size:23px; line-height:1.2; }
+        .app-confirm-copy > p:not(.app-confirm-eyebrow):not(.app-confirm-detail) { margin:0; color:#334155; font-size:16px; line-height:1.5; }
+        .app-confirm-detail { margin:12px 0 0; padding:11px 13px; border-radius:10px; background:#f8fafc; color:#64748b; font-size:13px; line-height:1.45; }
+        .app-confirm-actions { grid-column:1/-1; display:flex; justify-content:flex-end; gap:10px; margin-top:24px; padding-top:18px; border-top:1px solid #e2e8f0; }
+        .app-confirm-actions .btn { min-width:130px; }
+        .app-confirm-danger .app-confirm-icon { background:#fee2e2; color:#dc2626; }
+        .app-confirm-danger .app-confirm-eyebrow { color:#dc2626; }
+        .app-confirm-danger #appConfirmAccept { border-color:#ef4444; background:#ef4444; }
+        .app-confirm-warning .app-confirm-icon { background:#fef3c7; color:#b45309; }
+        .app-confirm-warning .app-confirm-eyebrow { color:#b45309; }
+        .app-confirm-warning #appConfirmAccept { border-color:#2563eb; background:#2563eb; }
+        @media(max-width:520px) {
+            .app-confirm-overlay { padding:16px; }
+            .app-confirm-dialog { grid-template-columns:46px minmax(0,1fr); gap:0 13px; padding:20px; border-radius:17px; }
+            .app-confirm-icon { width:46px; height:46px; border-radius:13px; font-size:22px; }
+            .app-confirm-copy h2 { font-size:20px; }
+            .app-confirm-actions { flex-direction:column-reverse; }
+            .app-confirm-actions .btn { width:100%; }
+        }
+
         /* --- Estilos para Impresión --- */
         @media print {
             @page {
