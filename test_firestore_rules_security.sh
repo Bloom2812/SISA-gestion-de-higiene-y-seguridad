@@ -18,6 +18,8 @@ grep -q "isIncidentManager" "$rules_file" || fail "Falta el control de gestión 
 grep -q "isValidIncident" "$rules_file" || fail "Falta la validación estructural de incidentes"
 grep -q "match /incidentes/{incidenteId}" "$rules_file" || fail "Faltan reglas para incidentes"
 grep -q "match /historial/{eventoId}" "$rules_file" || fail "Falta la bitácora de incidentes"
+grep -q "match /investigacion/{investigacionId}" "$rules_file" || fail "Falta el expediente separado de investigación causal"
+grep -q "isValidIncidentInvestigation" "$rules_file" || fail "Falta la validación de investigación causal"
 grep -q "match /{document=\*\*}" "$rules_file" || fail "Falta cierre por defecto"
 
 if grep -q "request.time < timestamp.date" "$rules_file"; then

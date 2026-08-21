@@ -1,6 +1,6 @@
 import test, { after, beforeEach } from 'node:test';
 import { assertFails, assertSucceeds, initializeTestEnvironment } from '@firebase/rules-unit-testing';
-import { deleteDoc, doc, getDoc, serverTimestamp, setDoc, Timestamp, updateDoc } from 'firebase/firestore';
+import { deleteDoc, doc, getDoc, serverTimestamp, setDoc, Timestamp, updateDoc, writeBatch } from 'firebase/firestore';
 import { readFileSync } from 'node:fs';
 
 const PROJECT_ID = 'demo-sisa';
@@ -254,10 +254,62 @@ test('el código, autor y fecha de creación del incidente son inmutables', asyn
 });
 
 test('Responsable H&S actualiza el estado sin alterar identidad ni creación', async () => {
-  await assertSucceeds(updateDoc(
+  await assertFails(updateDoc(
     doc(dbDe('hs'), ruta('incidentes', 'incidente-semilla')),
     { estado: 'En investigación', ultima_actualizacion: serverTimestamp() }
   ));
+});
+
+function investigacionValida(uid) {
+  return {
+    metodologia: '5 Porqués',
+    hechos_confirmados: 'Se confirmó un objeto en la zona demarcada de tránsito.',
+    causa_inmediata: 'Objeto colocado en el pasillo.',
+    por_que_1: 'El objeto quedó fuera de su ubicación definida.',
+    por_que_2: 'La ubicación temporal no estaba señalizada.',
+    por_que_3: 'El proceso no define una zona temporal de almacenamiento.',
+    por_que_4: 'El estándar de orden no contempla materiales en tránsito.',
+    por_que_5: 'La evaluación del flujo de materiales estaba incompleta.',
+    causa_raiz: 'Falta de un estándar para materiales en tránsito.',
+    factores_contribuyentes: 'Demarcación insuficiente y supervisión no documentada.',
+    investigador_id: uid,
+    fecha_inicio: serverTimestamp(),
+    ultima_actualizacion: serverTimestamp()
+  };
+}
+
+test('iniciar investigación exige cambio de estado, documento causal y bitácora atómicos', async () => {
+  const db = dbDe('hs');
+  const incidenteRef = doc(db, ruta('incidentes', 'incidente-semilla'));
+  const investigacionRef = doc(db, `${ruta('incidentes', 'incidente-semilla')}/investigacion/principal`);
+  const historialRef = doc(db, `${ruta('incidentes', 'incidente-semilla')}/historial/inicio-investigacion`);
+  const batch = writeBatch(db);
+  batch.update(incidenteRef, { estado: 'En investigación', ultima_actualizacion: serverTimestamp() });
+  batch.set(investigacionRef, investigacionValida('hs'));
+  batch.set(historialRef, {
+    tipo_evento: 'INICIO_INVESTIGACION',
+    descripcion: 'Investigación causal iniciada con metodología 5 Porqués.',
+    usuario_id: 'hs',
+    fecha: serverTimestamp()
+  });
+  await assertSucceeds(batch.commit());
+});
+
+test('investigación causal rechaza roles no autorizados, campos incompletos y eliminación', async () => {
+  const rutaInvestigacion = `${ruta('incidentes', 'incidente-semilla')}/investigacion/principal`;
+  await assertFails(setDoc(doc(dbDe('supervisor'), rutaInvestigacion), investigacionValida('supervisor')));
+  await assertFails(setDoc(doc(dbDe('hs'), rutaInvestigacion), {
+    ...investigacionValida('hs'),
+    por_que_5: ''
+  }));
+  await env.withSecurityRulesDisabled(async context => {
+    await setDoc(doc(context.firestore(), rutaInvestigacion), {
+      ...investigacionValida('hs'),
+      fecha_inicio: Timestamp.now(),
+      ultima_actualizacion: Timestamp.now()
+    });
+  });
+  await assertFails(deleteDoc(doc(dbDe('hs'), rutaInvestigacion)));
 });
 
 test('el flujo impide saltos de estado y bloquea expedientes cerrados', async () => {
