@@ -33,6 +33,7 @@
         let currentUserProfile = null;
         let unsubscribeRiesgos = null;
         let unsubscribeUsuarios = null;
+        let unsubscribeIncidentes = null;
 
         const ROLES_VALIDOS = [
             'Administrador',
@@ -69,6 +70,8 @@
             }
 
             aplicarPermisosSalud();
+            const btnNuevoIncidente = document.getElementById('btnNuevoIncidente');
+            if (btnNuevoIncidente) btnNuevoIncidente.style.display = ['Administrador', 'Responsable H&S'].includes(rol) ? '' : 'none';
         }
 
         function aplicarPermisosSalud() {
@@ -233,6 +236,7 @@
                     // Iniciar la escucha de datos
                     iniciarSuscripcionRiesgos();
                     iniciarSuscripcionAreas();
+                    iniciarSuscripcionIncidentes();
                     if (['Médico Ocupacional', 'Responsable H&S'].includes(currentUserProfile.rol)) {
                         iniciarSuscripcionTrabajadores();
                         iniciarSuscripcionExamenesMedicos();
@@ -280,6 +284,7 @@
                 if(unsubscribeExamenesMedicos) unsubscribeExamenesMedicos();
                 if(unsubscribeSaludClinica) unsubscribeSaludClinica();
                 if(unsubscribeAptitudesOcupacionales) unsubscribeAptitudesOcupacionales();
+                if(unsubscribeIncidentes) unsubscribeIncidentes();
 
                 unsubscribeRiesgos = null;
                 unsubscribeUsuarios = null;
@@ -288,6 +293,7 @@
                 unsubscribeExamenesMedicos = null;
                 unsubscribeSaludClinica = null;
                 unsubscribeAptitudesOcupacionales = null;
+                unsubscribeIncidentes = null;
                 cacheTrabajadoresBase = {};
                 cacheSaludClinica = {};
                 cacheAptitudesOcupacionales = {};
@@ -396,6 +402,7 @@
         const coleccionUsuarios = collection(db, 'artifacts', appId, 'public', 'data', 'usuarios');
         const coleccionAreas = collection(db, 'artifacts', appId, 'public', 'data', 'areas');
         let unsubscribeAreas = null;
+        let cacheAreas = {};
 
         function iniciarSuscripcionUsuarios() {
             if (!currentUser) return;
@@ -548,15 +555,18 @@
             unsubscribeAreas = onSnapshot(coleccionAreas, (snapshot) => {
                 const tbody = document.getElementById('areasTableBody');
                 tbody.innerHTML = '';
+                cacheAreas = {};
 
                 if (snapshot.empty) {
                     tbody.innerHTML = '<tr><td colspan="2" style="text-align:center;">No hay áreas registradas.</td></tr>';
+                    actualizarOpcionesIncidentes();
                     return;
                 }
 
                 snapshot.forEach((docSnap) => {
                     const data = docSnap.data();
                     const id = docSnap.id;
+                    cacheAreas[id] = { id, ...data };
 
                     const tr = document.createElement('tr');
                     tr.innerHTML = `
@@ -579,6 +589,7 @@
                         showModal('modalArea');
                     });
                 });
+                actualizarOpcionesIncidentes();
 
                 document.querySelectorAll('.btn-eliminar-area').forEach(btn => {
                     btn.addEventListener('click', async (e) => {
@@ -1296,6 +1307,7 @@
 
                 trabajadoresCargados = true;
                 renderizarTrabajadoresSiListo();
+                actualizarOpcionesIncidentes();
 
             }, (error) => {
                 console.error("Error al cargar trabajadores:", error);
@@ -2049,7 +2061,205 @@
 
 
         // ============================================================
-        // 6. INTERFAZ DE USUARIO (NAVEGACIÓN Y MODALES)
+        // 6. MÓDULO DE INCIDENTES (REPORTE Y CONSULTA)
+        // ============================================================
+        const coleccionIncidentes = collection(db, 'artifacts', appId, 'public', 'data', 'incidentes');
+        let cacheIncidentes = [];
+
+        const OPCIONES_INCIDENTES = {
+            estado: ['Reportado', 'En investigación', 'Acciones en curso', 'Cerrado'],
+            tipo: ['Incidente', 'Accidente', 'Cuasi accidente'],
+            gravedad: ['Baja', 'Media', 'Alta', 'Crítica']
+        };
+
+        function esGestorIncidentes() {
+            return ['Administrador', 'Responsable H&S'].includes(currentUserProfile?.rol);
+        }
+
+        function fechaIncidente(valor, incluirHora = false) {
+            if (!valor) return 'Sin fecha';
+            const fecha = valor.toDate ? valor.toDate() : new Date(valor);
+            if (Number.isNaN(fecha.getTime())) return 'Sin fecha';
+            return new Intl.DateTimeFormat('es-HN', {
+                day: '2-digit', month: 'short', year: 'numeric',
+                ...(incluirHora ? { hour: '2-digit', minute: '2-digit' } : {})
+            }).format(fecha);
+        }
+
+        function claseEstadoIncidente(valor) {
+            return `incident-badge-${String(valor || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replaceAll(' ', '-')}`;
+        }
+
+        function actualizarOpcionesIncidentes() {
+            const areaSelect = document.getElementById('incArea');
+            if (areaSelect) {
+                const actual = areaSelect.value;
+                const areas = Object.values(cacheAreas).sort((a, b) => String(a.nombre).localeCompare(String(b.nombre), 'es'));
+                areaSelect.innerHTML = '<option value="">Seleccione un área…</option>' + areas.map(a => `<option value="${escapeHtml(a.id)}">${escapeHtml(a.nombre)}</option>`).join('');
+                if (cacheAreas[actual]) areaSelect.value = actual;
+            }
+
+            const trabajadorSelect = document.getElementById('incTrabajador');
+            if (trabajadorSelect) {
+                const actual = trabajadorSelect.value;
+                const trabajadores = Object.values(cacheTrabajadoresBase).filter(t => t.estado_laboral !== 'Archivado').sort((a, b) => `${a.nombres} ${a.apellidos}`.localeCompare(`${b.nombres} ${b.apellidos}`, 'es'));
+                trabajadorSelect.innerHTML = '<option value="">Sin trabajador relacionado</option>' + trabajadores.map(t => `<option value="${escapeHtml(t.id)}">${escapeHtml(`${t.nombres || ''} ${t.apellidos || ''}`.trim())}</option>`).join('');
+                if (cacheTrabajadoresBase[actual]) trabajadorSelect.value = actual;
+                document.getElementById('incTrabajadorGrupo').style.display = trabajadores.length ? '' : 'none';
+            }
+            actualizarFiltroValorIncidentes();
+        }
+
+        function actualizarFiltroValorIncidentes() {
+            const campo = document.getElementById('incFiltroCampo')?.value || 'estado';
+            const select = document.getElementById('incFiltroValor');
+            if (!select) return;
+            const actual = select.value;
+            const opciones = campo === 'area_id'
+                ? Object.values(cacheAreas).sort((a, b) => String(a.nombre).localeCompare(String(b.nombre), 'es')).map(a => [a.id, a.nombre])
+                : (OPCIONES_INCIDENTES[campo] || []).map(valor => [valor, valor]);
+            select.innerHTML = '<option value="">Todos</option>' + opciones.map(([valor, etiqueta]) => `<option value="${escapeHtml(valor)}">${escapeHtml(etiqueta)}</option>`).join('');
+            if (opciones.some(([valor]) => valor === actual)) select.value = actual;
+            renderizarIncidentes();
+        }
+
+        function renderizarIncidentes() {
+            const lista = document.getElementById('incidentesLista');
+            if (!lista) return;
+            const busqueda = document.getElementById('incBuscar')?.value.trim().toLowerCase() || '';
+            const campo = document.getElementById('incFiltroCampo')?.value || 'estado';
+            const valor = document.getElementById('incFiltroValor')?.value || '';
+            const filtrados = cacheIncidentes.filter(i => {
+                const texto = `${i.codigo} ${i.descripcion} ${i.area_nombre} ${i.tipo} ${i.estado}`.toLowerCase();
+                return (!busqueda || texto.includes(busqueda)) && (!valor || i[campo] === valor);
+            });
+
+            document.getElementById('incStatActivos').textContent = cacheIncidentes.filter(i => i.estado !== 'Cerrado').length;
+            document.getElementById('incStatReportados').textContent = cacheIncidentes.filter(i => i.estado === 'Reportado').length;
+            document.getElementById('incStatInvestigacion').textContent = cacheIncidentes.filter(i => i.estado === 'En investigación').length;
+            document.getElementById('incStatGraves').textContent = cacheIncidentes.filter(i => ['Alta', 'Crítica'].includes(i.gravedad) && i.estado !== 'Cerrado').length;
+
+            if (!filtrados.length) {
+                lista.innerHTML = '<div class="incident-empty"><strong>No hay incidentes para mostrar</strong><span>Ajuste los filtros o registre un nuevo evento.</span></div>';
+                return;
+            }
+            lista.innerHTML = filtrados.map(i => `
+                <article class="incident-row">
+                    <div class="incident-row-code"><span>${escapeHtml(i.codigo)}</span><small>${escapeHtml(fechaIncidente(i.fecha_evento, true))}</small></div>
+                    <div class="incident-row-main"><strong>${escapeHtml(i.tipo)} · ${escapeHtml(i.area_nombre)}</strong><p>${escapeHtml(i.descripcion)}</p></div>
+                    <span class="incident-badge ${claseEstadoIncidente(i.gravedad)}">${escapeHtml(i.gravedad)}</span>
+                    <span class="incident-badge ${claseEstadoIncidente(i.estado)}">${escapeHtml(i.estado)}</span>
+                    <button type="button" class="btn btn-outline btn-sm btn-ver-incidente" data-id="${escapeHtml(i.id)}">Ver detalle</button>
+                </article>`).join('');
+            lista.querySelectorAll('.btn-ver-incidente').forEach(btn => btn.addEventListener('click', () => abrirDetalleIncidente(btn.dataset.id)));
+        }
+
+        function iniciarSuscripcionIncidentes() {
+            if (!currentUser) return;
+            if (unsubscribeIncidentes) unsubscribeIncidentes();
+            unsubscribeIncidentes = onSnapshot(coleccionIncidentes, snapshot => {
+                cacheIncidentes = snapshot.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => (b.fecha_evento?.seconds || 0) - (a.fecha_evento?.seconds || 0));
+                renderizarIncidentes();
+            }, error => {
+                console.error('Error al leer incidentes:', error);
+                showToast('No fue posible cargar los incidentes.', 'error');
+            });
+        }
+
+        function abrirDetalleIncidente(id) {
+            const i = cacheIncidentes.find(item => item.id === id);
+            if (!i) return;
+            document.getElementById('incDetalleCodigo').textContent = i.codigo;
+            document.getElementById('incDetalleContenido').innerHTML = `
+                <div class="incident-detail-grid">
+                    <div><span>Estado</span><strong class="incident-badge ${claseEstadoIncidente(i.estado)}">${escapeHtml(i.estado)}</strong></div>
+                    <div><span>Gravedad</span><strong class="incident-badge ${claseEstadoIncidente(i.gravedad)}">${escapeHtml(i.gravedad)}</strong></div>
+                    <div><span>Tipo</span><strong>${escapeHtml(i.tipo)}</strong></div>
+                    <div><span>Fecha del evento</span><strong>${escapeHtml(fechaIncidente(i.fecha_evento, true))}</strong></div>
+                    <div><span>Área</span><strong>${escapeHtml(i.area_nombre)}</strong></div>
+                    <div><span>Lugar específico</span><strong>${escapeHtml(i.lugar_especifico || 'No indicado')}</strong></div>
+                </div>
+                <div class="incident-detail-block"><span>Descripción</span><p>${escapeHtml(i.descripcion)}</p></div>
+                <div class="incident-detail-block"><span>Acciones inmediatas</span><p>${escapeHtml(i.acciones_inmediatas || 'No registradas')}</p></div>`;
+            showModal('modalDetalleIncidente');
+        }
+
+        function abrirFormularioIncidente() {
+            if (!esGestorIncidentes()) {
+                showToast('Su rol solo permite consultar incidentes.', 'error');
+                return;
+            }
+            document.getElementById('formIncidente').reset();
+            const ahora = new Date();
+            ahora.setMinutes(ahora.getMinutes() - ahora.getTimezoneOffset());
+            document.getElementById('incFechaEvento').value = ahora.toISOString().slice(0, 16);
+            document.getElementById('incFechaEvento').max = ahora.toISOString().slice(0, 16);
+            actualizarOpcionesIncidentes();
+            showModal('modalIncidente');
+        }
+
+        document.getElementById('formIncidente').addEventListener('submit', async event => {
+            event.preventDefault();
+            if (!currentUser || !esGestorIncidentes()) return;
+            const btn = document.getElementById('btnSubmitIncidente');
+            const areaId = document.getElementById('incArea').value;
+            const area = cacheAreas[areaId];
+            const fechaEvento = new Date(document.getElementById('incFechaEvento').value);
+            const descripcion = document.getElementById('incDescripcion').value.trim();
+            if (!area || Number.isNaN(fechaEvento.getTime()) || fechaEvento > new Date()) {
+                showToast('Revise el área y la fecha del evento.', 'error');
+                return;
+            }
+            if (descripcion.length < 10) {
+                showToast('La descripción debe contener al menos 10 caracteres útiles.', 'error');
+                return;
+            }
+            btn.disabled = true;
+            btn.textContent = 'Guardando…';
+            try {
+                const incidenteRef = doc(coleccionIncidentes);
+                const historialRef = doc(collection(incidenteRef, 'historial'));
+                const codigo = `INC-${new Date().getFullYear()}-${Date.now().toString(36).toUpperCase()}`;
+                const datos = {
+                    codigo,
+                    tipo: document.getElementById('incTipo').value,
+                    fecha_evento: fechaEvento,
+                    area_id: areaId,
+                    area_nombre: area.nombre,
+                    descripcion,
+                    gravedad: document.getElementById('incGravedad').value,
+                    estado: 'Reportado',
+                    reportado_por: currentUser.uid,
+                    fecha_creacion: serverTimestamp(),
+                    ultima_actualizacion: serverTimestamp()
+                };
+                const lugar = document.getElementById('incLugar').value.trim();
+                const trabajador = document.getElementById('incTrabajador').value;
+                const acciones = document.getElementById('incAcciones').value.trim();
+                if (lugar) datos.lugar_especifico = lugar;
+                if (trabajador) datos.trabajador_id = trabajador;
+                if (acciones) datos.acciones_inmediatas = acciones;
+                const batch = writeBatch(db);
+                batch.set(incidenteRef, datos);
+                batch.set(historialRef, { tipo_evento: 'REPORTE', descripcion: `Expediente ${codigo} reportado`, usuario_id: currentUser.uid, fecha: serverTimestamp() });
+                await batch.commit();
+                hideModal('modalIncidente');
+                showToast(`✅ Incidente ${codigo} registrado`);
+            } catch (error) {
+                console.error('Error al registrar incidente:', error);
+                showToast('No fue posible registrar el incidente.', 'error');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Guardar reporte';
+            }
+        });
+
+        document.getElementById('incFiltroCampo').addEventListener('change', actualizarFiltroValorIncidentes);
+        document.getElementById('incFiltroValor').addEventListener('change', renderizarIncidentes);
+        document.getElementById('incBuscar').addEventListener('input', renderizarIncidentes);
+
+        // ============================================================
+        // 7. INTERFAZ DE USUARIO (NAVEGACIÓN Y MODALES)
         // ============================================================
         // Navegación del Sidebar
         const navItems = document.querySelectorAll('.nav-item');
@@ -2081,6 +2291,8 @@
                 const headerTitle = document.querySelector('.header-title');
                 if (this.dataset.page === 'salud') {
                     headerTitle.innerHTML = 'Salud Ocupacional <span>| Gestión de vigilancia médica y expedientes de salud ocupacional</span>';
+                } else if (this.dataset.page === 'incidentes') {
+                    headerTitle.innerHTML = 'Incidentes <span>| Reporte y trazabilidad de eventos de seguridad</span>';
                 } else {
                     headerTitle.innerHTML = 'SISA <span>| Sistema Integral de Seguridad y Ambiente</span>';
                 }
@@ -2107,6 +2319,7 @@
         document.getElementById('btnNuevaActaDash').addEventListener('click', () => showModal('modalActa'));
         document.getElementById('btnNuevaActa').addEventListener('click', () => showModal('modalActa'));
         document.getElementById('btnNuevoRiesgo').addEventListener('click', () => showModal('modalRiesgo'));
+        document.getElementById('btnNuevoIncidente').addEventListener('click', abrirFormularioIncidente);
 
         // Asignar cierres de modales
         document.getElementById('btnCloseActa').addEventListener('click', () => hideModal('modalActa'));
@@ -2117,6 +2330,10 @@
         document.getElementById('btnCancelUsuario').addEventListener('click', () => hideModal('modalUsuario'));
         document.getElementById('btnCloseArea').addEventListener('click', () => hideModal('modalArea'));
         document.getElementById('btnCancelArea').addEventListener('click', () => hideModal('modalArea'));
+        document.getElementById('btnCloseIncidente').addEventListener('click', () => hideModal('modalIncidente'));
+        document.getElementById('btnCancelIncidente').addEventListener('click', () => hideModal('modalIncidente'));
+        document.getElementById('btnCloseDetalleIncidente').addEventListener('click', () => hideModal('modalDetalleIncidente'));
+        document.getElementById('btnCerrarDetalleIncidente').addEventListener('click', () => hideModal('modalDetalleIncidente'));
 
         // Cierre al dar clic fuera del modal
         document.querySelectorAll('.modal-overlay').forEach(overlay => {

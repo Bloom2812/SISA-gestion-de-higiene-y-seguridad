@@ -692,7 +692,26 @@
                     </div>
                 </div>
 
-                <div class="page" id="page-incidentes"><h2 class="mb-4">🚨 Incidentes</h2><p>Módulo listo para ser desarrollado igual que Riesgos.</p></div>
+                <div class="page" id="page-incidentes">
+                    <section class="incident-page-header">
+                        <div><p class="incident-eyebrow">SEGURIDAD OPERACIONAL</p><h2>Incidentes y Accidentes</h2><p class="text-muted">Registro trazable de eventos y seguimiento de su estado.</p></div>
+                        <button class="btn btn-primary" id="btnNuevoIncidente">➕ Reportar incidente</button>
+                    </section>
+                    <div class="incident-stats" aria-label="Resumen de incidentes">
+                        <article class="incident-stat"><span>Expedientes activos</span><strong id="incStatActivos">0</strong></article>
+                        <article class="incident-stat"><span>Reportados</span><strong id="incStatReportados">0</strong></article>
+                        <article class="incident-stat"><span>En investigación</span><strong id="incStatInvestigacion">0</strong></article>
+                        <article class="incident-stat incident-stat-alert"><span>Alta o crítica</span><strong id="incStatGraves">0</strong></article>
+                    </div>
+                    <section class="card incident-directory">
+                        <div class="incident-toolbar">
+                            <label class="incident-search"><span>🔎</span><input id="incBuscar" class="form-control" type="search" placeholder="Buscar por código, descripción, área..." aria-label="Buscar incidentes"></label>
+                            <select id="incFiltroCampo" class="form-control" aria-label="Categoría del filtro"><option value="estado">Estado</option><option value="tipo">Tipo de evento</option><option value="gravedad">Gravedad</option><option value="area_id">Área</option></select>
+                            <select id="incFiltroValor" class="form-control" aria-label="Valor del filtro"></select>
+                        </div>
+                        <div class="incident-list" id="incidentesLista" aria-live="polite"><div class="incident-empty">Cargando incidentes…</div></div>
+                    </section>
+                </div>
                 <div class="page" id="page-capacitaciones"><h2 class="mb-4">🎓 Capacitaciones</h2><p>Módulo listo para ser desarrollado igual que Riesgos.</p></div>
 
                 <!-- ========================================================= -->
@@ -852,6 +871,34 @@
                     <button type="submit" class="btn btn-success" id="btnSubmitRiesgo">✅ Guardar en Firebase</button>
                 </div>
             </form>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="modalIncidente">
+        <div class="modal modal-wide">
+            <div class="modal-header"><div><p class="incident-eyebrow">NUEVO EXPEDIENTE</p><h2>Reportar incidente</h2></div><button type="button" class="modal-close" id="btnCloseIncidente">×</button></div>
+            <form id="formIncidente">
+                <div class="grid-2">
+                    <div class="form-group"><label for="incTipo">Tipo de evento *</label><select class="form-control" id="incTipo" required><option value="Incidente">Incidente</option><option value="Accidente">Accidente</option><option value="Cuasi accidente">Cuasi accidente</option></select></div>
+                    <div class="form-group"><label for="incGravedad">Gravedad inicial *</label><select class="form-control" id="incGravedad" required><option value="Baja">Baja</option><option value="Media">Media</option><option value="Alta">Alta</option><option value="Crítica">Crítica</option></select></div>
+                    <div class="form-group"><label for="incFechaEvento">Fecha y hora del evento *</label><input class="form-control" id="incFechaEvento" type="datetime-local" required></div>
+                    <div class="form-group"><label for="incArea">Área *</label><select class="form-control" id="incArea" required><option value="">Seleccione un área…</option></select></div>
+                    <div class="form-group"><label for="incLugar">Lugar específico</label><input class="form-control" id="incLugar" maxlength="200" placeholder="Ej. Línea 2, zona de carga"></div>
+                    <div class="form-group" id="incTrabajadorGrupo"><label for="incTrabajador">Trabajador relacionado (opcional)</label><select class="form-control" id="incTrabajador"><option value="">Sin trabajador relacionado</option></select></div>
+                </div>
+                <div class="form-group"><label for="incDescripcion">Descripción objetiva del evento *</label><textarea class="form-control" id="incDescripcion" rows="4" minlength="10" maxlength="2000" required placeholder="Describa qué ocurrió, dónde y bajo qué circunstancias."></textarea></div>
+                <div class="form-group"><label for="incAcciones">Acciones inmediatas realizadas</label><textarea class="form-control" id="incAcciones" rows="3" maxlength="2000" placeholder="Ej. Se aisló el área y se notificó al supervisor."></textarea></div>
+                <p class="incident-form-note">El expediente se registrará en estado <strong>Reportado</strong>. La investigación y el cierre se habilitarán en una etapa posterior.</p>
+                <div class="modal-footer"><button type="button" class="btn btn-outline" id="btnCancelIncidente">Cancelar</button><button type="submit" class="btn btn-primary" id="btnSubmitIncidente">Guardar reporte</button></div>
+            </form>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="modalDetalleIncidente">
+        <div class="modal modal-wide">
+            <div class="modal-header"><div><p class="incident-eyebrow">EXPEDIENTE DE INCIDENTE</p><h2 id="incDetalleCodigo">-</h2></div><button type="button" class="modal-close" id="btnCloseDetalleIncidente">×</button></div>
+            <div id="incDetalleContenido" class="incident-detail"></div>
+            <div class="modal-footer"><button type="button" class="btn btn-outline" id="btnCerrarDetalleIncidente">Cerrar</button></div>
         </div>
     </div>
 
