@@ -120,6 +120,7 @@ service cloud.firestore {
           'REPORTE',
           'ACTUALIZACION',
           'CAMBIO_ESTADO',
+          'INICIO_INVESTIGACION',
           'CIERRE'
         ]
         && data.descripcion is string
@@ -127,6 +128,41 @@ service cloud.firestore {
         && data.descripcion.size() <= 1000
         && data.usuario_id is string
         && data.fecha is timestamp;
+    }
+
+    function isValidIncidentInvestigation(data) {
+      return data.keys().hasAll([
+          'metodologia', 'hechos_confirmados', 'causa_inmediata',
+          'por_que_1', 'por_que_2', 'por_que_3', 'por_que_4', 'por_que_5',
+          'causa_raiz', 'factores_contribuyentes', 'investigador_id',
+          'fecha_inicio', 'ultima_actualizacion'
+        ])
+        && data.keys().hasOnly([
+          'metodologia', 'hechos_confirmados', 'causa_inmediata',
+          'por_que_1', 'por_que_2', 'por_que_3', 'por_que_4', 'por_que_5',
+          'causa_raiz', 'factores_contribuyentes', 'investigador_id',
+          'fecha_inicio', 'ultima_actualizacion'
+        ])
+        && data.metodologia == '5 Porqués'
+        && data.hechos_confirmados is string
+        && data.hechos_confirmados.size() >= 10
+        && data.hechos_confirmados.size() <= 2000
+        && data.causa_inmediata is string
+        && data.causa_inmediata.size() >= 5
+        && data.causa_inmediata.size() <= 1000
+        && data.por_que_1 is string && data.por_que_1.size() >= 5 && data.por_que_1.size() <= 1000
+        && data.por_que_2 is string && data.por_que_2.size() >= 5 && data.por_que_2.size() <= 1000
+        && data.por_que_3 is string && data.por_que_3.size() >= 5 && data.por_que_3.size() <= 1000
+        && data.por_que_4 is string && data.por_que_4.size() >= 5 && data.por_que_4.size() <= 1000
+        && data.por_que_5 is string && data.por_que_5.size() >= 5 && data.por_que_5.size() <= 1000
+        && data.causa_raiz is string
+        && data.causa_raiz.size() >= 5
+        && data.causa_raiz.size() <= 1000
+        && data.factores_contribuyentes is string
+        && data.factores_contribuyentes.size() <= 2000
+        && data.investigador_id is string
+        && data.fecha_inicio is timestamp
+        && data.ultima_actualizacion is timestamp;
     }
 
     match /artifacts/{appId}/public/data {
@@ -167,6 +203,9 @@ service cloud.firestore {
           && request.resource.data.codigo == resource.data.codigo
           && request.resource.data.reportado_por == resource.data.reportado_por
           && request.resource.data.fecha_creacion == resource.data.fecha_creacion
+          && (resource.data.estado != 'Reportado'
+            || request.resource.data.estado != 'En investigación'
+            || existsAfter(/databases/$(database)/documents/artifacts/$(appId)/public/data/incidentes/$(incidenteId)/investigacion/principal))
           && request.resource.data.ultima_actualizacion == request.time;
         allow delete: if false;
 
@@ -178,6 +217,25 @@ service cloud.firestore {
             && request.resource.data.usuario_id == request.auth.uid
             && request.resource.data.fecha == request.time;
           allow update, delete: if false;
+        }
+
+        match /investigacion/{investigacionId} {
+          allow read: if hasUserProfile(appId);
+          allow create: if investigacionId == 'principal'
+            && isIncidentManager(appId)
+            && isValidIncidentInvestigation(request.resource.data)
+            && request.resource.data.investigador_id == request.auth.uid
+            && request.resource.data.fecha_inicio == request.time
+            && request.resource.data.ultima_actualizacion == request.time
+            && getAfter(/databases/$(database)/documents/artifacts/$(appId)/public/data/incidentes/$(incidenteId)).data.estado == 'En investigación';
+          allow update: if investigacionId == 'principal'
+            && isIncidentManager(appId)
+            && isValidIncidentInvestigation(request.resource.data)
+            && request.resource.data.investigador_id == resource.data.investigador_id
+            && request.resource.data.fecha_inicio == resource.data.fecha_inicio
+            && request.resource.data.ultima_actualizacion == request.time
+            && get(/databases/$(database)/documents/artifacts/$(appId)/public/data/incidentes/$(incidenteId)).data.estado != 'Cerrado';
+          allow delete: if false;
         }
       }
 

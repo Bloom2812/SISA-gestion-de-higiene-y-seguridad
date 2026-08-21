@@ -898,7 +898,30 @@
         <div class="modal modal-wide">
             <div class="modal-header"><div><p class="incident-eyebrow">EXPEDIENTE DE INCIDENTE</p><h2 id="incDetalleCodigo">-</h2></div><button type="button" class="modal-close" id="btnCloseDetalleIncidente">×</button></div>
             <div id="incDetalleContenido" class="incident-detail"></div>
-            <div class="modal-footer"><button type="button" class="btn btn-outline" id="btnCerrarDetalleIncidente">Cerrar</button></div>
+            <div class="modal-footer"><button type="button" class="btn btn-outline" id="btnCerrarDetalleIncidente">Cerrar</button><button type="button" class="btn btn-primary" id="btnIniciarInvestigacion">🔎 Iniciar investigación</button></div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="modalInvestigacionIncidente">
+        <div class="modal modal-wide incident-investigation-modal">
+            <div class="modal-header"><div><p class="incident-eyebrow">ANÁLISIS CAUSAL CONTROLADO</p><h2 id="investigacionIncidenteCodigo">Iniciar investigación</h2></div><button type="button" class="modal-close" id="btnCloseInvestigacion">×</button></div>
+            <form id="formInvestigacionIncidente">
+                <input type="hidden" id="investigacionIncidenteId">
+                <div class="incident-method-banner"><strong>Metodología: 5 Porqués</strong><span>Documente hechos verificables; no registre diagnósticos médicos ni suposiciones.</span></div>
+                <div class="form-group"><label for="invHechos">Hechos confirmados *</label><textarea class="form-control" id="invHechos" rows="3" minlength="10" maxlength="2000" required placeholder="Evidencia observada, ubicación y condiciones confirmadas."></textarea></div>
+                <div class="form-group"><label for="invCausaInmediata">Causa inmediata *</label><textarea class="form-control" id="invCausaInmediata" rows="2" minlength="5" maxlength="1000" required></textarea></div>
+                <div class="incident-whys">
+                    <div class="form-group"><label for="invPorque1">1. ¿Por qué ocurrió? *</label><textarea class="form-control" id="invPorque1" rows="2" minlength="5" maxlength="1000" required></textarea></div>
+                    <div class="form-group"><label for="invPorque2">2. ¿Por qué existía esa condición? *</label><textarea class="form-control" id="invPorque2" rows="2" minlength="5" maxlength="1000" required></textarea></div>
+                    <div class="form-group"><label for="invPorque3">3. ¿Por qué el control no la evitó? *</label><textarea class="form-control" id="invPorque3" rows="2" minlength="5" maxlength="1000" required></textarea></div>
+                    <div class="form-group"><label for="invPorque4">4. ¿Por qué el sistema permitió la falla? *</label><textarea class="form-control" id="invPorque4" rows="2" minlength="5" maxlength="1000" required></textarea></div>
+                    <div class="form-group"><label for="invPorque5">5. ¿Por qué persiste la causa sistémica? *</label><textarea class="form-control" id="invPorque5" rows="2" minlength="5" maxlength="1000" required></textarea></div>
+                </div>
+                <div class="form-group"><label for="invCausaRaiz">Causa raíz identificada *</label><textarea class="form-control" id="invCausaRaiz" rows="2" minlength="5" maxlength="1000" required></textarea></div>
+                <div class="form-group"><label for="invFactores">Factores contribuyentes</label><textarea class="form-control" id="invFactores" rows="2" maxlength="2000" placeholder="Condiciones adicionales que favorecieron el evento."></textarea></div>
+                <p class="incident-form-note">Al guardar, el expediente cambiará a <strong>En investigación</strong> y se registrará el evento en la bitácora. Esta operación no cierra el caso.</p>
+                <div class="modal-footer"><button type="button" class="btn btn-outline" id="btnCancelInvestigacion">Cancelar</button><button type="submit" class="btn btn-primary" id="btnSubmitInvestigacion">Iniciar y guardar investigación</button></div>
+            </form>
         </div>
     </div>
 

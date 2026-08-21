@@ -2166,10 +2166,31 @@
             });
         }
 
-        function abrirDetalleIncidente(id) {
+        async function abrirDetalleIncidente(id) {
             const i = cacheIncidentes.find(item => item.id === id);
             if (!i) return;
             document.getElementById('incDetalleCodigo').textContent = i.codigo;
+            let investigacionHtml = '';
+            try {
+                const investigacionSnap = await getDoc(doc(coleccionIncidentes, id, 'investigacion', 'principal'));
+                if (investigacionSnap.exists()) {
+                    const inv = investigacionSnap.data();
+                    investigacionHtml = `
+                        <section class="incident-investigation-summary">
+                            <div class="incident-investigation-title"><span>🔎</span><div><small>INVESTIGACIÓN CAUSAL</small><strong>${escapeHtml(inv.metodologia)}</strong></div></div>
+                            <div class="incident-detail-block"><span>Hechos confirmados</span><p>${escapeHtml(inv.hechos_confirmados)}</p></div>
+                            <div class="incident-detail-block"><span>Causa inmediata</span><p>${escapeHtml(inv.causa_inmediata)}</p></div>
+                            <ol class="incident-five-whys">
+                                ${[1, 2, 3, 4, 5].map(numero => `<li><span>¿Por qué ${numero}?</span><p>${escapeHtml(inv[`por_que_${numero}`])}</p></li>`).join('')}
+                            </ol>
+                            <div class="incident-detail-block incident-root-cause"><span>Causa raíz</span><p>${escapeHtml(inv.causa_raiz)}</p></div>
+                            <div class="incident-detail-block"><span>Factores contribuyentes</span><p>${escapeHtml(inv.factores_contribuyentes || 'No registrados')}</p></div>
+                        </section>`;
+                }
+            } catch (error) {
+                console.error('Error al consultar la investigación:', error);
+                investigacionHtml = '<p class="incident-inline-error">No fue posible cargar la investigación causal.</p>';
+            }
             document.getElementById('incDetalleContenido').innerHTML = `
                 <div class="incident-detail-grid">
                     <div><span>Estado</span><strong class="incident-badge ${claseEstadoIncidente(i.estado)}">${escapeHtml(i.estado)}</strong></div>
@@ -2180,9 +2201,84 @@
                     <div><span>Lugar específico</span><strong>${escapeHtml(i.lugar_especifico || 'No indicado')}</strong></div>
                 </div>
                 <div class="incident-detail-block"><span>Descripción</span><p>${escapeHtml(i.descripcion)}</p></div>
-                <div class="incident-detail-block"><span>Acciones inmediatas</span><p>${escapeHtml(i.acciones_inmediatas || 'No registradas')}</p></div>`;
+                <div class="incident-detail-block"><span>Acciones inmediatas</span><p>${escapeHtml(i.acciones_inmediatas || 'No registradas')}</p></div>
+                ${investigacionHtml}`;
+            const btnInvestigar = document.getElementById('btnIniciarInvestigacion');
+            btnInvestigar.dataset.id = i.id;
+            btnInvestigar.style.display = esGestorIncidentes() && i.estado === 'Reportado' ? '' : 'none';
             showModal('modalDetalleIncidente');
         }
+
+        function abrirInvestigacionIncidente(id) {
+            const incidente = cacheIncidentes.find(item => item.id === id);
+            if (!incidente || !esGestorIncidentes() || incidente.estado !== 'Reportado') {
+                showToast('El expediente no puede iniciar una investigación desde su estado actual.', 'error');
+                return;
+            }
+            document.getElementById('formInvestigacionIncidente').reset();
+            document.getElementById('investigacionIncidenteId').value = id;
+            document.getElementById('investigacionIncidenteCodigo').textContent = `Investigar ${incidente.codigo}`;
+            hideModal('modalDetalleIncidente');
+            showModal('modalInvestigacionIncidente');
+        }
+
+        document.getElementById('formInvestigacionIncidente').addEventListener('submit', async event => {
+            event.preventDefault();
+            if (!currentUser || !esGestorIncidentes()) return;
+            const id = document.getElementById('investigacionIncidenteId').value;
+            const incidente = cacheIncidentes.find(item => item.id === id);
+            if (!incidente || incidente.estado !== 'Reportado') {
+                showToast('El expediente cambió de estado. Actualice la página antes de continuar.', 'error');
+                return;
+            }
+            const valores = {
+                hechos_confirmados: document.getElementById('invHechos').value.trim(),
+                causa_inmediata: document.getElementById('invCausaInmediata').value.trim(),
+                por_que_1: document.getElementById('invPorque1').value.trim(),
+                por_que_2: document.getElementById('invPorque2').value.trim(),
+                por_que_3: document.getElementById('invPorque3').value.trim(),
+                por_que_4: document.getElementById('invPorque4').value.trim(),
+                por_que_5: document.getElementById('invPorque5').value.trim(),
+                causa_raiz: document.getElementById('invCausaRaiz').value.trim(),
+                factores_contribuyentes: document.getElementById('invFactores').value.trim()
+            };
+            if (valores.hechos_confirmados.length < 10 || ['causa_inmediata', 'por_que_1', 'por_que_2', 'por_que_3', 'por_que_4', 'por_que_5', 'causa_raiz'].some(campo => valores[campo].length < 5)) {
+                showToast('Complete el análisis con información verificable en todos los campos obligatorios.', 'error');
+                return;
+            }
+            const btn = document.getElementById('btnSubmitInvestigacion');
+            btn.disabled = true;
+            btn.textContent = 'Guardando investigación…';
+            try {
+                const incidenteRef = doc(coleccionIncidentes, id);
+                const investigacionRef = doc(incidenteRef, 'investigacion', 'principal');
+                const historialRef = doc(collection(incidenteRef, 'historial'));
+                const batch = writeBatch(db);
+                batch.update(incidenteRef, { estado: 'En investigación', ultima_actualizacion: serverTimestamp() });
+                batch.set(investigacionRef, {
+                    metodologia: '5 Porqués',
+                    ...valores,
+                    investigador_id: currentUser.uid,
+                    fecha_inicio: serverTimestamp(),
+                    ultima_actualizacion: serverTimestamp()
+                });
+                batch.set(historialRef, {
+                    tipo_evento: 'INICIO_INVESTIGACION',
+                    descripcion: 'Investigación causal iniciada con metodología 5 Porqués.',
+                    usuario_id: currentUser.uid,
+                    fecha: serverTimestamp()
+                });
+                await batch.commit();
+                hideModal('modalInvestigacionIncidente');
+                showToast(`✅ Investigación de ${incidente.codigo} iniciada`);
+            } catch (error) {
+                console.error('Error al iniciar la investigación:', error);
+                showToast('No fue posible iniciar la investigación causal.', 'error');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Iniciar y guardar investigación';
+            }
+        });
 
         function abrirFormularioIncidente() {
             if (!esGestorIncidentes()) {
@@ -2320,6 +2416,7 @@
         document.getElementById('btnNuevaActa').addEventListener('click', () => showModal('modalActa'));
         document.getElementById('btnNuevoRiesgo').addEventListener('click', () => showModal('modalRiesgo'));
         document.getElementById('btnNuevoIncidente').addEventListener('click', abrirFormularioIncidente);
+        document.getElementById('btnIniciarInvestigacion').addEventListener('click', event => abrirInvestigacionIncidente(event.currentTarget.dataset.id));
 
         // Asignar cierres de modales
         document.getElementById('btnCloseActa').addEventListener('click', () => hideModal('modalActa'));
@@ -2334,6 +2431,8 @@
         document.getElementById('btnCancelIncidente').addEventListener('click', () => hideModal('modalIncidente'));
         document.getElementById('btnCloseDetalleIncidente').addEventListener('click', () => hideModal('modalDetalleIncidente'));
         document.getElementById('btnCerrarDetalleIncidente').addEventListener('click', () => hideModal('modalDetalleIncidente'));
+        document.getElementById('btnCloseInvestigacion').addEventListener('click', () => hideModal('modalInvestigacionIncidente'));
+        document.getElementById('btnCancelInvestigacion').addEventListener('click', () => hideModal('modalInvestigacionIncidente'));
 
         // Cierre al dar clic fuera del modal
         document.querySelectorAll('.modal-overlay').forEach(overlay => {
