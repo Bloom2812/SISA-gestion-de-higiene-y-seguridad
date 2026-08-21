@@ -34,6 +34,7 @@
         let unsubscribeRiesgos = null;
         let unsubscribeUsuarios = null;
         let unsubscribeIncidentes = null;
+        let unsubscribeCapacitaciones = null;
 
         const ROLES_VALIDOS = [
             'Administrador',
@@ -72,6 +73,8 @@
             aplicarPermisosSalud();
             const btnNuevoIncidente = document.getElementById('btnNuevoIncidente');
             if (btnNuevoIncidente) btnNuevoIncidente.style.display = ['Administrador', 'Responsable H&S'].includes(rol) ? '' : 'none';
+            const btnNuevaCapacitacion = document.getElementById('btnNuevaCapacitacion');
+            if (btnNuevaCapacitacion) btnNuevaCapacitacion.style.display = ['Administrador', 'Responsable H&S'].includes(rol) ? '' : 'none';
         }
 
         function aplicarPermisosSalud() {
@@ -237,6 +240,7 @@
                     iniciarSuscripcionRiesgos();
                     iniciarSuscripcionAreas();
                     iniciarSuscripcionIncidentes();
+                    iniciarSuscripcionCapacitaciones();
                     if (['Médico Ocupacional', 'Responsable H&S'].includes(currentUserProfile.rol)) {
                         iniciarSuscripcionTrabajadores();
                         iniciarSuscripcionExamenesMedicos();
@@ -285,6 +289,7 @@
                 if(unsubscribeSaludClinica) unsubscribeSaludClinica();
                 if(unsubscribeAptitudesOcupacionales) unsubscribeAptitudesOcupacionales();
                 if(unsubscribeIncidentes) unsubscribeIncidentes();
+                if(unsubscribeCapacitaciones) unsubscribeCapacitaciones();
 
                 unsubscribeRiesgos = null;
                 unsubscribeUsuarios = null;
@@ -294,6 +299,7 @@
                 unsubscribeSaludClinica = null;
                 unsubscribeAptitudesOcupacionales = null;
                 unsubscribeIncidentes = null;
+                unsubscribeCapacitaciones = null;
                 cacheTrabajadoresBase = {};
                 cacheSaludClinica = {};
                 cacheAptitudesOcupacionales = {};
@@ -2403,7 +2409,192 @@
         document.getElementById('incBuscar').addEventListener('input', renderizarIncidentes);
 
         // ============================================================
-        // 7. INTERFAZ DE USUARIO (NAVEGACIÓN Y MODALES)
+        // 7. MÓDULO DE CAPACITACIONES (PROGRAMACIÓN Y CONSULTA)
+        // ============================================================
+        const coleccionCapacitaciones = collection(db, 'artifacts', appId, 'public', 'data', 'capacitaciones');
+        let cacheCapacitaciones = [];
+
+        const OPCIONES_CAPACITACIONES = {
+            estado: ['Programada', 'En curso', 'Completada', 'Cancelada'],
+            modalidad: ['Presencial', 'Virtual', 'Mixta', 'Práctica en puesto'],
+            alcance: ['Toda la organización', 'Área específica']
+        };
+
+        function esGestorCapacitaciones() {
+            return ['Administrador', 'Responsable H&S'].includes(currentUserProfile?.rol);
+        }
+
+        function claseCapacitacion(valor) {
+            return `training-badge-${String(valor || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replaceAll(' ', '-')}`;
+        }
+
+        function fechaCapacitacion(valor) {
+            if (!valor) return 'Sin fecha';
+            const fecha = valor.toDate ? valor.toDate() : new Date(valor);
+            if (Number.isNaN(fecha.getTime())) return 'Sin fecha';
+            return new Intl.DateTimeFormat('es-HN', {
+                day: '2-digit', month: 'short', year: 'numeric',
+                hour: '2-digit', minute: '2-digit'
+            }).format(fecha);
+        }
+
+        function actualizarFiltroValorCapacitaciones() {
+            const campo = document.getElementById('capFiltroCampo')?.value || 'estado';
+            const select = document.getElementById('capFiltroValor');
+            if (!select) return;
+            const actual = select.value;
+            const valores = campo === 'categoria'
+                ? [...new Set(cacheCapacitaciones.map(c => c.categoria).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'es'))
+                : (OPCIONES_CAPACITACIONES[campo] || []);
+            select.innerHTML = '<option value="">Todos</option>' + valores.map(valor => `<option value="${escapeHtml(valor)}">${escapeHtml(valor)}</option>`).join('');
+            if (valores.includes(actual)) select.value = actual;
+            renderizarCapacitaciones();
+        }
+
+        function renderizarCapacitaciones() {
+            const lista = document.getElementById('capacitacionesLista');
+            if (!lista) return;
+            const busqueda = document.getElementById('capBuscar')?.value.trim().toLowerCase() || '';
+            const campo = document.getElementById('capFiltroCampo')?.value || 'estado';
+            const valor = document.getElementById('capFiltroValor')?.value || '';
+            const ahora = new Date();
+            const limite = new Date(ahora.getTime() + 30 * 24 * 60 * 60 * 1000);
+            const fechaDe = item => item.fecha_inicio?.toDate ? item.fecha_inicio.toDate() : new Date(item.fecha_inicio);
+            const filtradas = cacheCapacitaciones.filter(c => {
+                const texto = `${c.codigo} ${c.titulo} ${c.categoria} ${c.instructor} ${c.area_nombre || ''} ${c.estado}`.toLowerCase();
+                return (!busqueda || texto.includes(busqueda)) && (!valor || c[campo] === valor);
+            });
+
+            document.getElementById('capStatTotal').textContent = cacheCapacitaciones.length;
+            document.getElementById('capStatProgramadas').textContent = cacheCapacitaciones.filter(c => c.estado === 'Programada').length;
+            document.getElementById('capStatProximas').textContent = cacheCapacitaciones.filter(c => {
+                const fecha = fechaDe(c);
+                return c.estado === 'Programada' && !Number.isNaN(fecha.getTime()) && fecha >= ahora && fecha <= limite;
+            }).length;
+            document.getElementById('capStatVencidas').textContent = cacheCapacitaciones.filter(c => {
+                const fecha = fechaDe(c);
+                return c.estado === 'Programada' && !Number.isNaN(fecha.getTime()) && fecha < ahora;
+            }).length;
+
+            if (!filtradas.length) {
+                lista.innerHTML = '<div class="training-empty"><strong>No hay capacitaciones para mostrar</strong><span>Ajuste los filtros o programe una nueva actividad.</span></div>';
+                return;
+            }
+            lista.innerHTML = filtradas.map(c => `
+                <article class="training-row">
+                    <div class="training-row-code"><span>${escapeHtml(c.codigo)}</span><small>${escapeHtml(fechaCapacitacion(c.fecha_inicio))}</small></div>
+                    <div class="training-row-main"><strong>${escapeHtml(c.titulo)}</strong><p>${escapeHtml(c.categoria)} · ${escapeHtml(c.instructor)} · ${escapeHtml(c.area_nombre || c.alcance)}</p></div>
+                    <span class="training-badge">${escapeHtml(c.modalidad)}</span>
+                    <span class="training-badge ${claseCapacitacion(c.estado)}">${escapeHtml(c.estado)}</span>
+                </article>`).join('');
+        }
+
+        function actualizarAreaCapacitacion() {
+            const grupo = document.getElementById('capAreaGrupo');
+            const select = document.getElementById('capArea');
+            if (!grupo || !select) return;
+            const requiereArea = document.getElementById('capAlcance').value === 'Área específica';
+            grupo.style.display = requiereArea ? '' : 'none';
+            select.required = requiereArea;
+            if (!requiereArea) select.value = '';
+        }
+
+        function abrirFormularioCapacitacion() {
+            if (!esGestorCapacitaciones()) {
+                showToast('Su rol solo permite consultar capacitaciones.', 'error');
+                return;
+            }
+            document.getElementById('formCapacitacion').reset();
+            const inicio = new Date(Date.now() + 60 * 60 * 1000);
+            inicio.setMinutes(inicio.getMinutes() - inicio.getTimezoneOffset(), 0, 0);
+            document.getElementById('capFechaInicio').value = inicio.toISOString().slice(0, 16);
+            document.getElementById('capDuracion').value = 60;
+            const areaSelect = document.getElementById('capArea');
+            areaSelect.innerHTML = '<option value="">Seleccione un área…</option>' + Object.values(cacheAreas)
+                .sort((a, b) => String(a.nombre).localeCompare(String(b.nombre), 'es'))
+                .map(a => `<option value="${escapeHtml(a.id)}">${escapeHtml(a.nombre)}</option>`).join('');
+            actualizarAreaCapacitacion();
+            showModal('modalCapacitacion');
+        }
+
+        function iniciarSuscripcionCapacitaciones() {
+            if (!currentUser) return;
+            if (unsubscribeCapacitaciones) unsubscribeCapacitaciones();
+            unsubscribeCapacitaciones = onSnapshot(coleccionCapacitaciones, snapshot => {
+                cacheCapacitaciones = snapshot.docs.map(d => ({ id: d.id, ...d.data() }))
+                    .sort((a, b) => (b.fecha_inicio?.seconds || 0) - (a.fecha_inicio?.seconds || 0));
+                actualizarFiltroValorCapacitaciones();
+            }, error => {
+                console.error('Error al leer capacitaciones:', error);
+                showToast('No fue posible cargar las capacitaciones.', 'error');
+            });
+        }
+
+        document.getElementById('formCapacitacion').addEventListener('submit', async event => {
+            event.preventDefault();
+            if (!currentUser || !esGestorCapacitaciones()) return;
+            const fechaInicio = new Date(document.getElementById('capFechaInicio').value);
+            const alcance = document.getElementById('capAlcance').value;
+            const areaId = document.getElementById('capArea').value;
+            const area = cacheAreas[areaId];
+            const titulo = document.getElementById('capTitulo').value.trim();
+            const categoria = document.getElementById('capCategoria').value.trim();
+            const instructor = document.getElementById('capInstructor').value.trim();
+            const duracion = Number(document.getElementById('capDuracion').value);
+            if (Number.isNaN(fechaInicio.getTime()) || titulo.length < 5 || categoria.length < 2 || instructor.length < 2 || !Number.isInteger(duracion) || duracion < 15 || duracion > 1440) {
+                showToast('Revise los campos obligatorios de la programación.', 'error');
+                return;
+            }
+            if (alcance === 'Área específica' && !area) {
+                showToast('Seleccione un área válida para esta capacitación.', 'error');
+                return;
+            }
+            const btn = document.getElementById('btnSubmitCapacitacion');
+            btn.disabled = true;
+            btn.textContent = 'Guardando…';
+            try {
+                const capacitacionRef = doc(coleccionCapacitaciones);
+                const datos = {
+                    codigo: `CAP-${new Date().getFullYear()}-${Date.now().toString(36).toUpperCase()}`,
+                    titulo,
+                    categoria,
+                    modalidad: document.getElementById('capModalidad').value,
+                    fecha_inicio: fechaInicio,
+                    duracion_minutos: duracion,
+                    instructor,
+                    alcance,
+                    estado: 'Programada',
+                    creado_por: currentUser.uid,
+                    fecha_creacion: serverTimestamp(),
+                    ultima_actualizacion: serverTimestamp()
+                };
+                if (alcance === 'Área específica') {
+                    datos.area_id = areaId;
+                    datos.area_nombre = area.nombre;
+                }
+                const lugar = document.getElementById('capLugar').value.trim();
+                const objetivo = document.getElementById('capObjetivo').value.trim();
+                if (lugar) datos.lugar = lugar;
+                if (objetivo) datos.objetivo = objetivo;
+                await setDoc(capacitacionRef, datos);
+                hideModal('modalCapacitacion');
+                showToast(`✅ Capacitación ${datos.codigo} programada`);
+            } catch (error) {
+                console.error('Error al programar capacitación:', error);
+                showToast('No fue posible guardar la capacitación.', 'error');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Guardar programación';
+            }
+        });
+
+        document.getElementById('capFiltroCampo').addEventListener('change', actualizarFiltroValorCapacitaciones);
+        document.getElementById('capFiltroValor').addEventListener('change', renderizarCapacitaciones);
+        document.getElementById('capBuscar').addEventListener('input', renderizarCapacitaciones);
+        document.getElementById('capAlcance').addEventListener('change', actualizarAreaCapacitacion);
+
+        // ============================================================
+        // 8. INTERFAZ DE USUARIO (NAVEGACIÓN Y MODALES)
         // ============================================================
         // Navegación del Sidebar
         const navItems = document.querySelectorAll('.nav-item');
@@ -2437,6 +2628,8 @@
                     headerTitle.innerHTML = 'Salud Ocupacional <span>| Gestión de vigilancia médica y expedientes de salud ocupacional</span>';
                 } else if (this.dataset.page === 'incidentes') {
                     headerTitle.innerHTML = 'Incidentes <span>| Reporte y trazabilidad de eventos de seguridad</span>';
+                } else if (this.dataset.page === 'capacitaciones') {
+                    headerTitle.innerHTML = 'Capacitaciones <span>| Formación, cumplimiento y desarrollo de competencias</span>';
                 } else {
                     headerTitle.innerHTML = 'SISA <span>| Sistema Integral de Seguridad y Ambiente</span>';
                 }
@@ -2465,6 +2658,7 @@
         document.getElementById('btnNuevoRiesgo').addEventListener('click', () => showModal('modalRiesgo'));
         document.getElementById('btnNuevoIncidente').addEventListener('click', abrirFormularioIncidente);
         document.getElementById('btnIniciarInvestigacion').addEventListener('click', event => abrirInvestigacionIncidente(event.currentTarget.dataset.id));
+        document.getElementById('btnNuevaCapacitacion').addEventListener('click', abrirFormularioCapacitacion);
 
         // Asignar cierres de modales
         document.getElementById('btnCloseActa').addEventListener('click', () => hideModal('modalActa'));
@@ -2481,6 +2675,8 @@
         document.getElementById('btnCerrarDetalleIncidente').addEventListener('click', () => hideModal('modalDetalleIncidente'));
         document.getElementById('btnCloseInvestigacion').addEventListener('click', () => hideModal('modalInvestigacionIncidente'));
         document.getElementById('btnCancelInvestigacion').addEventListener('click', () => hideModal('modalInvestigacionIncidente'));
+        document.getElementById('btnCloseCapacitacion').addEventListener('click', () => hideModal('modalCapacitacion'));
+        document.getElementById('btnCancelCapacitacion').addEventListener('click', () => hideModal('modalCapacitacion'));
 
         // Cierre al dar clic fuera del modal
         document.querySelectorAll('.modal-overlay').forEach(overlay => {
