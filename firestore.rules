@@ -32,6 +32,97 @@ service cloud.firestore {
       return hasRole(appId, ['Administrador', 'Responsable H&S']);
     }
 
+    function isRiskManager(appId) {
+      return hasRole(appId, ['Administrador', 'Responsable H&S']);
+    }
+
+    function riskAreaExists(appId, areaId) {
+      return exists(/databases/$(database)/documents/artifacts/$(appId)/public/data/areas/$(areaId));
+    }
+
+    function isValidRiskPriority(priority) {
+      return priority in ['Baja', 'Moderada', 'Alta', 'Crítica'];
+    }
+
+    function isValidRiskTransition(previousState, nextState) {
+      return previousState == nextState
+        || (previousState == 'Identificado' && nextState in ['En tratamiento', 'Controlado', 'Archivado'])
+        || (previousState == 'En tratamiento' && nextState in ['Controlado', 'Archivado'])
+        || (previousState == 'Controlado' && nextState in ['En tratamiento', 'Archivado']);
+    }
+
+    function hasValidCommonRiskFields(appId, data) {
+      return data.keys().hasAll([
+          'codigo', 'metodologia', 'area_id', 'area_nombre', 'actividad',
+          'peligro', 'consecuencia', 'controles_existentes', 'responsable',
+          'estado', 'nivel_riesgo', 'prioridad', 'creado_por',
+          'fecha_creacion', 'ultima_actualizacion'
+        ])
+        && data.codigo is string && data.codigo.size() >= 10 && data.codigo.size() <= 30
+        && data.metodologia in ['Matriz 5x5', 'JSA 5x5', 'NTP 330']
+        && data.area_id is string && data.area_id.size() > 0
+        && riskAreaExists(appId, data.area_id)
+        && data.area_nombre is string && data.area_nombre.size() >= 2 && data.area_nombre.size() <= 120
+        && data.actividad is string && data.actividad.size() >= 3 && data.actividad.size() <= 160
+        && data.peligro is string && data.peligro.size() >= 5 && data.peligro.size() <= 500
+        && data.consecuencia is string && data.consecuencia.size() >= 5 && data.consecuencia.size() <= 500
+        && data.controles_existentes is string && data.controles_existentes.size() >= 1 && data.controles_existentes.size() <= 1000
+        && data.responsable is string && data.responsable.size() >= 2 && data.responsable.size() <= 120
+        && data.estado in ['Identificado', 'En tratamiento', 'Controlado', 'Archivado']
+        && data.nivel_riesgo is int && data.nivel_riesgo >= 0
+        && isValidRiskPriority(data.prioridad)
+        && data.creado_por is string
+        && data.fecha_creacion is timestamp
+        && data.ultima_actualizacion is timestamp
+        && (!data.keys().hasAny(['lugar']) || (data.lugar is string && data.lugar.size() <= 160))
+        && (!data.keys().hasAny(['fecha_compromiso']) || data.fecha_compromiso is timestamp);
+    }
+
+    function isValidFiveByFiveRisk(data) {
+      return data.metodologia in ['Matriz 5x5', 'JSA 5x5']
+        && data.keys().hasAll(['probabilidad', 'severidad'])
+        && data.probabilidad is int && data.probabilidad >= 1 && data.probabilidad <= 5
+        && data.severidad is int && data.severidad >= 1 && data.severidad <= 5
+        && data.nivel_riesgo == data.probabilidad * data.severidad
+        && !data.keys().hasAny(['nivel_deficiencia', 'nivel_exposicion', 'nivel_consecuencia'])
+        && ((data.nivel_riesgo >= 20 && data.prioridad == 'Crítica')
+          || (data.nivel_riesgo >= 10 && data.nivel_riesgo < 20 && data.prioridad == 'Alta')
+          || (data.nivel_riesgo >= 5 && data.nivel_riesgo < 10 && data.prioridad == 'Moderada')
+          || (data.nivel_riesgo < 5 && data.prioridad == 'Baja'))
+        && ((data.metodologia == 'Matriz 5x5' && !data.keys().hasAny(['paso_tarea']))
+          || (data.metodologia == 'JSA 5x5'
+            && data.paso_tarea is string
+            && data.paso_tarea.size() >= 3
+            && data.paso_tarea.size() <= 200));
+    }
+
+    function isValidNtp330Risk(data) {
+      return data.metodologia == 'NTP 330'
+        && data.keys().hasAll(['nivel_deficiencia', 'nivel_exposicion', 'nivel_consecuencia'])
+        && data.nivel_deficiencia in [0, 2, 6, 10]
+        && data.nivel_exposicion in [1, 2, 3, 4]
+        && data.nivel_consecuencia in [10, 25, 60, 100]
+        && data.nivel_riesgo == data.nivel_deficiencia * data.nivel_exposicion * data.nivel_consecuencia
+        && !data.keys().hasAny(['probabilidad', 'severidad', 'paso_tarea'])
+        && ((data.nivel_riesgo >= 600 && data.prioridad == 'Crítica')
+          || (data.nivel_riesgo >= 150 && data.nivel_riesgo < 600 && data.prioridad == 'Alta')
+          || (data.nivel_riesgo >= 40 && data.nivel_riesgo < 150 && data.prioridad == 'Moderada')
+          || (data.nivel_riesgo < 40 && data.prioridad == 'Baja'));
+    }
+
+    function isValidRisk(appId, data) {
+      return hasValidCommonRiskFields(appId, data)
+        && data.keys().hasOnly([
+          'codigo', 'metodologia', 'area_id', 'area_nombre', 'actividad', 'lugar',
+          'paso_tarea', 'peligro', 'consecuencia', 'controles_existentes',
+          'probabilidad', 'severidad', 'nivel_deficiencia', 'nivel_exposicion',
+          'nivel_consecuencia', 'nivel_riesgo', 'prioridad', 'responsable',
+          'fecha_compromiso', 'estado', 'creado_por', 'fecha_creacion',
+          'ultima_actualizacion'
+        ])
+        && (isValidFiveByFiveRisk(data) || isValidNtp330Risk(data));
+    }
+
     function trainingAreaReferenceIsValid(appId, data) {
       return (data.alcance == 'Toda la organización'
           && !data.keys().hasAny(['area_id', 'area_nombre']))
@@ -296,8 +387,20 @@ service cloud.firestore {
 
       match /riesgos/{riesgoId} {
         allow read: if hasUserProfile(appId);
-        allow create, update, delete:
-          if hasRole(appId, ['Administrador', 'Responsable H&S']);
+        allow create: if isRiskManager(appId)
+          && isValidRisk(appId, request.resource.data)
+          && request.resource.data.creado_por == request.auth.uid
+          && request.resource.data.fecha_creacion == request.time
+          && request.resource.data.ultima_actualizacion == request.time;
+        allow update: if isRiskManager(appId)
+          && isValidRisk(appId, request.resource.data)
+          && isValidRiskTransition(resource.data.estado, request.resource.data.estado)
+          && request.resource.data.codigo == resource.data.codigo
+          && request.resource.data.metodologia == resource.data.metodologia
+          && request.resource.data.creado_por == resource.data.creado_por
+          && request.resource.data.fecha_creacion == resource.data.fecha_creacion
+          && request.resource.data.ultima_actualizacion == request.time;
+        allow delete: if false;
       }
 
       match /incidentes/{incidenteId} {

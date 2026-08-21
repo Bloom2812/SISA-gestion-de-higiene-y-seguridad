@@ -91,6 +91,31 @@ function capacitacionValida(uid, codigo = 'CAP-2026-0001') {
   };
 }
 
+function riesgo5x5Valido(uid, codigo = 'RSK-2026-0001', metodologia = 'Matriz 5x5') {
+  const data = {
+    codigo, metodologia, area_id: 'mantenimiento', area_nombre: 'Mantenimiento',
+    actividad: 'Manipulación de materiales', peligro: 'Caída de objetos durante el traslado',
+    consecuencia: 'Golpes o lesiones al personal expuesto', controles_existentes: 'Área delimitada',
+    probabilidad: 3, severidad: 4, nivel_riesgo: 12, prioridad: 'Alta',
+    responsable: 'Jefatura de mantenimiento', estado: 'Identificado', creado_por: uid,
+    fecha_creacion: serverTimestamp(), ultima_actualizacion: serverTimestamp()
+  };
+  if (metodologia === 'JSA 5x5') data.paso_tarea = 'Elevar la carga al segundo nivel';
+  return data;
+}
+
+function riesgoNtp330Valido(uid, codigo = 'RSK-2026-NTP1') {
+  return {
+    codigo, metodologia: 'NTP 330', area_id: 'mantenimiento', area_nombre: 'Mantenimiento',
+    actividad: 'Inspección de tablero eléctrico', peligro: 'Contacto con partes energizadas',
+    consecuencia: 'Electrocución o quemaduras graves', controles_existentes: 'Señalización existente',
+    nivel_deficiencia: 6, nivel_exposicion: 2, nivel_consecuencia: 60,
+    nivel_riesgo: 720, prioridad: 'Crítica', responsable: 'Jefatura de mantenimiento',
+    estado: 'Identificado', creado_por: uid,
+    fecha_creacion: serverTimestamp(), ultima_actualizacion: serverTimestamp()
+  };
+}
+
 test.before(async () => {
   env = await initializeTestEnvironment({
     projectId: PROJECT_ID,
@@ -413,6 +438,37 @@ test('ningún rol puede eliminar un incidente', async () => {
   for (const uid of ['admin', 'hs', 'gerencia', 'supervisor', 'trabajador']) {
     await assertFails(deleteDoc(doc(dbDe(uid), ruta('incidentes', 'incidente-semilla'))));
   }
+});
+
+test('gestores registran riesgos con Matriz 5x5, JSA y NTP 330', async () => {
+  await assertSucceeds(setDoc(doc(dbDe('admin'), ruta('riesgos', 'matriz')), riesgo5x5Valido('admin')));
+  await assertSucceeds(setDoc(doc(dbDe('hs'), ruta('riesgos', 'jsa')), riesgo5x5Valido('hs', 'RSK-2026-JSA1', 'JSA 5x5')));
+  await assertSucceeds(setDoc(doc(dbDe('hs'), ruta('riesgos', 'ntp')), riesgoNtp330Valido('hs')));
+});
+
+test('rechaza escalas, cálculos y prioridades de riesgo inconsistentes', async () => {
+  await assertFails(setDoc(doc(dbDe('hs'), ruta('riesgos', 'escala-invalida')), {
+    ...riesgo5x5Valido('hs'), probabilidad: 10, nivel_riesgo: 40, prioridad: 'Crítica'
+  }));
+  await assertFails(setDoc(doc(dbDe('hs'), ruta('riesgos', 'calculo-invalido')), {
+    ...riesgoNtp330Valido('hs'), nivel_riesgo: 12, prioridad: 'Baja'
+  }));
+  await assertFails(setDoc(doc(dbDe('hs'), ruta('riesgos', 'jsa-incompleto')), {
+    ...riesgo5x5Valido('hs', 'RSK-2026-JSA2'), metodologia: 'JSA 5x5'
+  }));
+});
+
+test('riesgos respetan roles, transiciones, identidad y conservación', async () => {
+  for (const uid of ['medico', 'gerencia', 'supervisor', 'trabajador']) {
+    await assertFails(setDoc(doc(dbDe(uid), ruta('riesgos', `riesgo-${uid}`)), riesgo5x5Valido(uid, `RSK-2026-${uid.toUpperCase()}`)));
+  }
+  const ref = doc(dbDe('hs'), ruta('riesgos', 'flujo-riesgo'));
+  await assertSucceeds(setDoc(ref, riesgo5x5Valido('hs', 'RSK-2026-FLUJO')));
+  await assertSucceeds(updateDoc(ref, { estado: 'En tratamiento', ultima_actualizacion: serverTimestamp() }));
+  await assertSucceeds(updateDoc(ref, { estado: 'Controlado', ultima_actualizacion: serverTimestamp() }));
+  await assertFails(updateDoc(ref, { metodologia: 'NTP 330', ultima_actualizacion: serverTimestamp() }));
+  await assertFails(updateDoc(ref, { estado: 'Identificado', ultima_actualizacion: serverTimestamp() }));
+  await assertFails(deleteDoc(ref));
 });
 
 test('usuarios con perfil pueden consultar capacitaciones, pero una sesión anónima no', async () => {

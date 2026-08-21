@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>SISA - Sistema Integral de Seguridad y Ambiente</title>
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
-    <link rel="stylesheet" href="styles.css?v=20260821.3" />
+    <link rel="stylesheet" href="styles.css?v=20260821.4" />
 </head>
 <body>
 
@@ -223,24 +223,29 @@
                 <!-- ====== PAGE: RIESGOS (CONECTADO A FIREBASE) ====== -->
                 <!-- ========================================================= -->
                 <div class="page" id="page-riesgos">
-                    <div class="flex-between mb-4">
-                        <div>
-                            <h2 style="font-size:24px;">⚠️ Matriz de Riesgos</h2>
-                            <span class="text-muted">Conectado en tiempo real con Firestore</span>
+                    <section class="risk-hero">
+                        <div class="risk-hero-icon" aria-hidden="true">⚠️</div>
+                        <div class="risk-hero-copy"><h2>Evaluación y control de riesgos</h2><p>Matriz 5×5, JSA/JHA y NTP 330 con trazabilidad preventiva.</p></div>
+                        <button class="btn btn-success" id="btnNuevoRiesgo">➕ Nueva evaluación</button>
+                    </section>
+                    <section class="risk-stats" aria-label="Resumen de riesgos">
+                        <article><span>Evaluaciones activas</span><strong id="riskStatActivos">0</strong></article>
+                        <article><span>Prioridad alta o crítica</span><strong id="riskStatPrioritarios">0</strong></article>
+                        <article><span>En tratamiento</span><strong id="riskStatTratamiento">0</strong></article>
+                        <article class="risk-stat-accent"><span>Controles vencidos</span><strong id="riskStatVencidos">0</strong></article>
+                    </section>
+                    <div class="card risk-directory">
+                        <div class="risk-filters">
+                            <div class="search-wrapper"><span class="icon">🔎</span><input id="riskSearch" class="form-control" placeholder="Buscar código, peligro, actividad o responsable…"></div>
+                            <select id="riskFilterMethod" class="form-control" aria-label="Filtrar por método"><option value="">Todos los métodos</option><option value="Matriz 5x5">Matriz 5×5</option><option value="JSA 5x5">JSA/JHA + 5×5</option><option value="NTP 330">NTP 330</option><option value="Legacy 10x10">Legacy 10×10</option></select>
+                            <select id="riskFilterPriority" class="form-control" aria-label="Filtrar por prioridad"><option value="">Todas las prioridades</option><option>Baja</option><option>Moderada</option><option>Alta</option><option>Crítica</option></select>
+                            <select id="riskFilterState" class="form-control" aria-label="Filtrar por estado"><option value="">Todos los estados</option><option>Identificado</option><option>En tratamiento</option><option>Controlado</option><option>Archivado</option></select>
                         </div>
-                        <button class="btn btn-success" id="btnNuevoRiesgo">➕ Nuevo Riesgo</button>
-                    </div>
-
-                    <div class="card">
                         <div class="table-wrapper">
-                            <table>
+                            <table class="risk-table">
                                 <thead>
                                     <tr>
-                                        <th>Puesto / Área</th>
-                                        <th>Peligro</th>
-                                        <th style="text-align:center;">Nivel (P x S)</th>
-                                        <th>Responsable</th>
-                                        <th>Acciones</th>
+                                        <th>Código / método</th><th>Área y actividad</th><th>Peligro / consecuencia</th><th>Riesgo</th><th>Estado / responsable</th>
                                     </tr>
                                 </thead>
                                 <tbody id="riesgosTableBody">
@@ -868,37 +873,28 @@
 
     <!-- MODAL: Nuevo Riesgo (Firebase) -->
     <div class="modal-overlay" id="modalRiesgo">
-        <div class="modal">
+        <div class="modal modal-wide risk-modal">
             <div class="modal-header">
-                <h2>⚠️ Reportar Nuevo Riesgo</h2>
+                <div><p class="incident-eyebrow">EVALUACIÓN PREVENTIVA</p><h2>Registrar riesgo</h2></div>
                 <button class="modal-close" id="btnCloseRiesgo">×</button>
             </div>
             <form id="formRiesgo">
-                <div class="form-group">
-                    <label>Puesto / Área *</label>
-                    <input class="form-control" type="text" id="r_area" placeholder="Ej: Sala de Calderas" required />
-                </div>
-                <div class="form-group">
-                    <label>Peligro *</label>
-                    <input class="form-control" type="text" id="r_peligro" placeholder="Ej: Ruido excesivo" required />
-                </div>
                 <div class="grid-2">
-                    <div class="form-group">
-                        <label>Probabilidad (1-10) *</label>
-                        <input class="form-control" type="number" id="r_probabilidad" min="1" max="10" placeholder="8" required />
-                    </div>
-                    <div class="form-group">
-                        <label>Severidad (1-10) *</label>
-                        <input class="form-control" type="number" id="r_severidad" min="1" max="10" placeholder="9" required />
-                    </div>
+                    <div class="form-group"><label for="r_metodologia">Método de evaluación *</label><select class="form-control" id="r_metodologia" required><option value="Matriz 5x5">Matriz general 5×5</option><option value="JSA 5x5">JSA/JHA por tarea + 5×5</option><option value="NTP 330">INSST NTP 330</option></select><small id="r_metodologia_ayuda" class="form-hint"></small></div>
+                    <div class="form-group"><label for="r_area">Área *</label><select class="form-control" id="r_area" required><option value="">Seleccione un área…</option></select></div>
+                    <div class="form-group"><label for="r_actividad">Actividad o proceso *</label><input class="form-control" id="r_actividad" maxlength="160" required placeholder="Ej. Traslado de materiales"></div>
+                    <div class="form-group"><label for="r_lugar">Lugar específico</label><input class="form-control" id="r_lugar" maxlength="160" placeholder="Ej. Bodega N.° 6"></div>
                 </div>
-                <div class="form-group">
-                    <label>Responsable</label>
-                    <input class="form-control" type="text" id="r_responsable" placeholder="Nombre del responsable" required/>
-                </div>
+                <div class="form-group risk-jsa-field" hidden><label for="r_paso_tarea">Paso de la tarea analizado *</label><input class="form-control" id="r_paso_tarea" maxlength="200" placeholder="Ej. Subir la carga al segundo nivel"></div>
+                <div class="grid-2"><div class="form-group"><label for="r_peligro">Peligro identificado *</label><textarea class="form-control" id="r_peligro" rows="3" minlength="5" maxlength="500" required placeholder="Fuente o situación con potencial de daño"></textarea></div><div class="form-group"><label for="r_consecuencia">Consecuencia posible *</label><textarea class="form-control" id="r_consecuencia" rows="3" minlength="5" maxlength="500" required placeholder="Daño que podría producirse"></textarea></div></div>
+                <div class="form-group"><label for="r_controles">Controles existentes</label><textarea class="form-control" id="r_controles" rows="2" maxlength="1000" placeholder="Medidas ya implementadas; escriba “Ninguno” si no existen"></textarea></div>
+                <fieldset class="risk-method-panel" id="riskPanel5x5"><legend>Valoración 5×5</legend><div class="grid-2"><div class="form-group"><label for="r_probabilidad">Probabilidad *</label><select class="form-control" id="r_probabilidad"><option value="1">1 · Rara</option><option value="2">2 · Improbable</option><option value="3">3 · Posible</option><option value="4">4 · Probable</option><option value="5">5 · Casi segura</option></select></div><div class="form-group"><label for="r_severidad">Severidad *</label><select class="form-control" id="r_severidad"><option value="1">1 · Insignificante</option><option value="2">2 · Menor</option><option value="3">3 · Moderada</option><option value="4">4 · Mayor</option><option value="5">5 · Catastrófica</option></select></div></div></fieldset>
+                <fieldset class="risk-method-panel" id="riskPanelNtp" hidden><legend>Valoración NTP 330</legend><div class="grid-3"><div class="form-group"><label for="r_deficiencia">Nivel de deficiencia *</label><select class="form-control" id="r_deficiencia"><option value="0">0 · Aceptable</option><option value="2">2 · Mejorable</option><option value="6">6 · Deficiente</option><option value="10">10 · Muy deficiente</option></select></div><div class="form-group"><label for="r_exposicion">Nivel de exposición *</label><select class="form-control" id="r_exposicion"><option value="1">1 · Esporádica</option><option value="2">2 · Ocasional</option><option value="3">3 · Frecuente</option><option value="4">4 · Continuada</option></select></div><div class="form-group"><label for="r_consecuencia_ntp">Nivel de consecuencia *</label><select class="form-control" id="r_consecuencia_ntp"><option value="10">10 · Leve</option><option value="25">25 · Grave</option><option value="60">60 · Muy grave</option><option value="100">100 · Mortal o catastrófica</option></select></div></div></fieldset>
+                <div class="risk-live-result" aria-live="polite"><span>Resultado calculado</span><strong id="riskLiveResult">Baja · 1</strong><small id="riskLiveFormula">P 1 × S 1</small></div>
+                <div class="grid-3"><div class="form-group"><label for="r_responsable">Responsable de la acción *</label><input class="form-control" id="r_responsable" maxlength="120" required></div><div class="form-group"><label for="r_fecha_compromiso">Fecha compromiso</label><input class="form-control" type="date" id="r_fecha_compromiso"></div><div class="form-group"><label for="r_estado">Estado inicial *</label><select class="form-control" id="r_estado"><option>Identificado</option><option>En tratamiento</option><option>Controlado</option></select></div></div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-outline" id="btnCancelRiesgo">Cancelar</button>
-                    <button type="submit" class="btn btn-success" id="btnSubmitRiesgo">✅ Guardar en Firebase</button>
+                    <button type="submit" class="btn btn-success" id="btnSubmitRiesgo">Guardar evaluación</button>
                 </div>
             </form>
         </div>
@@ -1025,6 +1021,6 @@
     <!-- ========================================================= -->
     <!-- ====== JAVASCRIPT CON FIREBASE ====== -->
     <!-- ========================================================= -->
-    <script type="module" src="app.js?v=20260821.2"></script>
+    <script type="module" src="app.js?v=20260821.3"></script>
 </body>
 </html>
