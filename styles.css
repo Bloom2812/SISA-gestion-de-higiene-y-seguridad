@@ -1756,6 +1756,43 @@
             .login-box { padding: 24px 16px; }
         }
 
+        /* --- Módulo de Actas --- */
+        .minutes-hero { display:flex; align-items:center; gap:16px; padding:20px 22px; margin-bottom:18px; background:#fff; border:1px solid #dde5ef; border-radius:18px; box-shadow:0 8px 24px rgba(15,23,42,.05); }
+        .minutes-hero-icon { width:52px; height:52px; display:grid; place-items:center; flex:0 0 auto; background:#eef4ff; border-radius:15px; font-size:25px; }
+        .minutes-hero h2 { margin:0 0 4px; font-size:25px; color:#10213a; }
+        .minutes-hero p { margin:0; color:#64748b; }
+        .minutes-hero .btn { margin-left:auto; }
+        .minutes-stats { display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-bottom:18px; }
+        .minutes-stats article { padding:18px 20px; background:#fff; border:1px solid #dde5ef; border-radius:16px; box-shadow:0 5px 16px rgba(15,23,42,.04); }
+        .minutes-stats span { display:block; color:#64748b; font-size:14px; font-weight:600; }
+        .minutes-stats strong { display:block; margin-top:8px; font-size:28px; color:#10213a; }
+        .minutes-stat-alert { border-left:4px solid #ef4444 !important; }
+        .minutes-panel { padding:24px; }
+        .minutes-toolbar { display:grid; grid-template-columns:minmax(280px,1fr) 220px 220px; gap:12px; margin-bottom:18px; }
+        .minutes-table td { vertical-align:middle; }
+        .minutes-table td small { display:block; margin-top:4px; color:#64748b; }
+        .minutes-type, .minutes-status { display:inline-flex; align-items:center; width:max-content; padding:5px 11px; border-radius:999px; background:#dbeafe; color:#1d4ed8; font-size:13px; font-weight:700; }
+        .minutes-status-borrador { background:#e2e8f0; color:#475569; }
+        .minutes-status-en-seguimiento { background:#fef3c7; color:#92400e; }
+        .minutes-status-cerrada { background:#d1fae5; color:#047857; }
+        .minutes-status-cancelada, .minutes-status-overdue { background:#fee2e2; color:#b91c1c; }
+        .minutes-empty { padding:42px !important; text-align:center; color:#64748b; }
+        .minutes-eyebrow { margin:0 0 3px; color:#2563eb; font-size:13px; font-weight:800; letter-spacing:.1em; }
+        .minutes-agreement { margin:8px 0 16px; padding:18px; border:1px solid #dbe4ef; border-radius:14px; background:#f8fafc; }
+        .minutes-agreement legend { padding:0 8px; color:#334155; font-weight:700; }
+        .minutes-form-note { padding:13px 15px; border-radius:12px; background:#eff6ff; color:#475569; }
+        .minutes-detail-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; }
+        .minutes-detail-grid article, .minutes-detail-section { padding:16px; border:1px solid #dbe4ef; border-radius:14px; background:#f8fafc; }
+        .minutes-detail-grid span, .minutes-detail-section > span { display:block; margin-bottom:7px; color:#64748b; font-size:12px; font-weight:800; letter-spacing:.04em; text-transform:uppercase; }
+        .minutes-detail-section { margin-top:14px; }
+        .minutes-detail-section h3, .minutes-detail-section p { margin:0; color:#243247; line-height:1.6; }
+        .minutes-commitment { display:flex; align-items:center; justify-content:space-between; gap:14px; padding:12px 0; border-top:1px solid #e2e8f0; }
+        .minutes-commitment:first-of-type { border-top:0; }
+        .minutes-commitment small { display:block; margin-top:4px; color:#64748b; }
+        .sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
+        @media (max-width:900px) { .minutes-stats{grid-template-columns:repeat(2,1fr)} .minutes-toolbar{grid-template-columns:1fr} .minutes-detail-grid{grid-template-columns:repeat(2,1fr)} }
+        @media (max-width:600px) { .minutes-hero{align-items:flex-start;flex-wrap:wrap} .minutes-hero .btn{width:100%;margin-left:0} .minutes-stats,.minutes-detail-grid{grid-template-columns:1fr} }
+
         /* --- Estilos para Impresión --- */
         @media print {
             @page {
