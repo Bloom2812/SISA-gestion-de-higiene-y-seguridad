@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>SISA - Sistema Integral de Seguridad y Ambiente</title>
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
-    <link rel="stylesheet" href="styles.css?v=20260821.4" />
+    <link rel="stylesheet" href="styles.css?v=20260821.5" />
 </head>
 <body>
 
@@ -182,38 +182,38 @@
                 </div>
 
                 <!-- ========================================================= -->
-                <!-- ====== PAGE: ACTAS (MOCKUP) ====== -->
+                <!-- ====== PAGE: ACTAS ====== -->
                 <!-- ========================================================= -->
                 <div class="page" id="page-actas">
-                    <div class="flex-between mb-4">
-                        <div>
-                            <h2 style="font-size:24px;">📄 Gestión de Actas</h2>
-                            <span class="text-muted">Registro y seguimiento de reuniones</span>
+                    <section class="minutes-hero">
+                        <div class="minutes-hero-icon" aria-hidden="true">📄</div>
+                        <div><h2>Gestión de Actas</h2><p>Reuniones, acuerdos y compromisos con seguimiento trazable.</p></div>
+                        <button class="btn btn-primary" id="btnNuevaActa">➕ Nueva acta</button>
+                    </section>
+                    <section class="minutes-stats" aria-label="Resumen de actas">
+                        <article><span>Total</span><strong id="actaStatTotal">0</strong></article>
+                        <article><span>Borradores</span><strong id="actaStatBorrador">0</strong></article>
+                        <article><span>En seguimiento</span><strong id="actaStatSeguimiento">0</strong></article>
+                        <article class="minutes-stat-alert"><span>Compromisos vencidos</span><strong id="actaStatVencidos">0</strong></article>
+                    </section>
+                    <div class="card minutes-panel">
+                        <div class="minutes-toolbar">
+                            <label class="sr-only" for="actaBuscar">Buscar actas</label><input id="actaBuscar" class="form-control" placeholder="🔎 Buscar por número, asunto o lugar…">
+                            <label class="sr-only" for="actaFiltroEstado">Filtrar por estado</label><select id="actaFiltroEstado" class="form-control"><option value="">Todos los estados</option><option>Borrador</option><option>En seguimiento</option><option>Cerrada</option><option>Cancelada</option></select>
+                            <label class="sr-only" for="actaFiltroTipo">Filtrar por tipo</label><select id="actaFiltroTipo" class="form-control"><option value="">Todos los tipos</option><option>Ordinaria</option><option>Extraordinaria</option><option>Comité H&amp;S</option><option>Investigación</option><option>Seguimiento</option></select>
                         </div>
-                        <button class="btn btn-primary" id="btnNuevaActa">➕ Nueva Acta</button>
-                    </div>
-
-                    <div class="card">
                         <div class="table-wrapper">
-                            <table>
+                            <table class="minutes-table">
                                 <thead>
                                     <tr>
                                         <th>N° Acta</th>
                                         <th>Fecha</th>
                                         <th>Tipo</th>
                                         <th>Estado</th>
-                                        <th>Acciones</th>
+                                        <th>Asunto</th><th>Compromisos</th><th>Acciones</th>
                                     </tr>
                                 </thead>
-                                <tbody>
-                                    <tr>
-                                        <td><strong>H&S-2026-001</strong></td>
-                                        <td>15/01/2026</td>
-                                        <td><span class="badge badge-info">Ordinaria</span></td>
-                                        <td><span class="badge badge-success">Cerrada</span></td>
-                                        <td><button class="btn btn-sm btn-outline">👁️</button></td>
-                                    </tr>
-                                </tbody>
+                                <tbody id="actasTableBody"><tr><td colspan="7" class="minutes-empty">Cargando actas…</td></tr></tbody>
                             </table>
                         </div>
                     </div>
@@ -809,25 +809,34 @@
     <!-- ====== MODALES ====== -->
     <!-- ========================================================= -->
 
-    <!-- MODAL: Nueva Acta (Simulado) -->
+    <!-- MODAL: Nueva Acta -->
     <div class="modal-overlay" id="modalActa">
-        <div class="modal">
+        <div class="modal modal-wide minutes-modal">
             <div class="modal-header">
-                <h2>📄 Nueva Acta</h2>
+                <div><p class="minutes-eyebrow">REGISTRO DE REUNIÓN</p><h2>Nueva acta</h2></div>
                 <button class="modal-close" id="btnCloseActa">×</button>
             </div>
             <form id="formActa">
-                <div class="form-group">
-                    <label>N° Acta *</label>
-                    <input class="form-control" type="text" placeholder="H&S-2026-005" required />
+                <div class="grid-2">
+                    <div class="form-group"><label for="actaTipo">Tipo de reunión *</label><select class="form-control" id="actaTipo" required><option>Ordinaria</option><option>Extraordinaria</option><option>Comité H&amp;S</option><option>Investigación</option><option>Seguimiento</option></select></div>
+                    <div class="form-group"><label for="actaFecha">Fecha y hora *</label><input class="form-control" type="datetime-local" id="actaFecha" required></div>
+                    <div class="form-group"><label for="actaLugar">Lugar o medio *</label><input class="form-control" id="actaLugar" minlength="2" maxlength="160" required placeholder="Sala, planta o enlace virtual"></div>
+                    <div class="form-group"><label for="actaPreside">Preside *</label><input class="form-control" id="actaPreside" minlength="2" maxlength="120" required></div>
                 </div>
+                <div class="form-group"><label for="actaAsunto">Asunto u objetivo *</label><input class="form-control" id="actaAsunto" minlength="5" maxlength="200" required placeholder="Objetivo principal de la reunión"></div>
+                <div class="form-group"><label for="actaAsistentes">Asistentes *</label><textarea class="form-control" id="actaAsistentes" rows="3" minlength="2" maxlength="2000" required placeholder="Un nombre por línea"></textarea><small class="form-hint">Registre un asistente por línea.</small></div>
+                <div class="form-group"><label for="actaAgenda">Agenda y temas tratados *</label><textarea class="form-control" id="actaAgenda" rows="4" minlength="5" maxlength="4000" required></textarea></div>
+                <fieldset class="minutes-agreement"><legend>Primer compromiso</legend><div class="grid-2"><div class="form-group"><label for="actaCompromiso">Acuerdo o acción *</label><textarea class="form-control" id="actaCompromiso" rows="2" minlength="5" maxlength="1000" required></textarea></div><div><div class="form-group"><label for="actaResponsable">Responsable *</label><input class="form-control" id="actaResponsable" minlength="2" maxlength="120" required></div><div class="form-group"><label for="actaFechaCompromiso">Fecha límite *</label><input class="form-control" id="actaFechaCompromiso" type="date" required></div></div></div></fieldset>
+                <p class="minutes-form-note">El acta se guardará como <strong>Borrador</strong>. Podrá pasar a seguimiento sin perder su historial.</p>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-outline" id="btnCancelActa">Cancelar</button>
-                    <button type="submit" class="btn btn-primary">✅ Crear Acta</button>
+                    <button type="submit" class="btn btn-primary" id="btnSubmitActa">Crear acta</button>
                 </div>
             </form>
         </div>
     </div>
+
+    <div class="modal-overlay" id="modalDetalleActa"><div class="modal modal-wide minutes-modal"><div class="modal-header"><div><p class="minutes-eyebrow">EXPEDIENTE DE REUNIÓN</p><h2 id="actaDetalleCodigo">Acta</h2></div><button class="modal-close" id="btnCloseDetalleActa">×</button></div><div id="actaDetalleContenido"></div><div class="modal-footer"><button class="btn btn-outline" type="button" id="btnCerrarDetalleActa">Cerrar</button></div></div></div>
 
     <!-- MODAL: Nuevo Usuario -->
     <div class="modal-overlay" id="modalUsuario">
@@ -1021,6 +1030,6 @@
     <!-- ========================================================= -->
     <!-- ====== JAVASCRIPT CON FIREBASE ====== -->
     <!-- ========================================================= -->
-    <script type="module" src="app.js?v=20260821.3"></script>
+    <script type="module" src="app.js?v=20260821.4"></script>
 </body>
 </html>

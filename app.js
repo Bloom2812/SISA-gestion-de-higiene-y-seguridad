@@ -35,6 +35,7 @@
         let unsubscribeUsuarios = null;
         let unsubscribeIncidentes = null;
         let unsubscribeCapacitaciones = null;
+        let unsubscribeActas = null;
 
         const ROLES_VALIDOS = [
             'Administrador',
@@ -77,6 +78,8 @@
             if (btnNuevaCapacitacion) btnNuevaCapacitacion.style.display = ['Administrador', 'Responsable H&S'].includes(rol) ? '' : 'none';
             const btnNuevoRiesgo = document.getElementById('btnNuevoRiesgo');
             if (btnNuevoRiesgo) btnNuevoRiesgo.style.display = ['Administrador', 'Responsable H&S'].includes(rol) ? '' : 'none';
+            const puedeGestionarActas = ['Administrador', 'Responsable H&S', 'Supervisor'].includes(rol);
+            ['btnNuevaActa', 'btnNuevaActaDash'].forEach(id => { const boton = document.getElementById(id); if (boton) boton.style.display = puedeGestionarActas ? '' : 'none'; });
         }
 
         function aplicarPermisosSalud() {
@@ -243,6 +246,7 @@
                     iniciarSuscripcionAreas();
                     iniciarSuscripcionIncidentes();
                     iniciarSuscripcionCapacitaciones();
+                    iniciarSuscripcionActas();
                     if (['Médico Ocupacional', 'Responsable H&S'].includes(currentUserProfile.rol)) {
                         iniciarSuscripcionTrabajadores();
                         iniciarSuscripcionExamenesMedicos();
@@ -292,6 +296,7 @@
                 if(unsubscribeAptitudesOcupacionales) unsubscribeAptitudesOcupacionales();
                 if(unsubscribeIncidentes) unsubscribeIncidentes();
                 if(unsubscribeCapacitaciones) unsubscribeCapacitaciones();
+                if(unsubscribeActas) unsubscribeActas();
 
                 unsubscribeRiesgos = null;
                 unsubscribeUsuarios = null;
@@ -302,6 +307,7 @@
                 unsubscribeAptitudesOcupacionales = null;
                 unsubscribeIncidentes = null;
                 unsubscribeCapacitaciones = null;
+                unsubscribeActas = null;
                 cacheTrabajadoresBase = {};
                 cacheSaludClinica = {};
                 cacheAptitudesOcupacionales = {};
@@ -2679,7 +2685,106 @@
         document.getElementById('capAlcance').addEventListener('change', actualizarAreaCapacitacion);
 
         // ============================================================
-        // 8. INTERFAZ DE USUARIO (NAVEGACIÓN Y MODALES)
+        // 8. MÓDULO DE ACTAS (REUNIONES Y COMPROMISOS)
+        // ============================================================
+        const coleccionActas = collection(db, 'artifacts', appId, 'public', 'data', 'actas');
+        let cacheActas = [];
+
+        function esGestorActas() {
+            return ['Administrador', 'Responsable H&S', 'Supervisor'].includes(currentUserProfile?.rol);
+        }
+
+        function fechaActa(valor, incluirHora = false) {
+            if (!valor) return 'Sin fecha';
+            const fecha = valor.toDate ? valor.toDate() : new Date(valor);
+            if (Number.isNaN(fecha.getTime())) return 'Sin fecha';
+            return new Intl.DateTimeFormat('es-HN', incluirHora
+                ? { dateStyle: 'medium', timeStyle: 'short' }
+                : { day: '2-digit', month: '2-digit', year: 'numeric' }).format(fecha);
+        }
+
+        function codigoActa() {
+            return `H&S-${new Date().getFullYear()}-${Date.now().toString(36).toUpperCase().slice(-6)}`;
+        }
+
+        function compromisoVencido(compromiso) {
+            if (!compromiso?.fecha_limite || compromiso.estado === 'Completado') return false;
+            const fecha = compromiso.fecha_limite.toDate ? compromiso.fecha_limite.toDate() : new Date(compromiso.fecha_limite);
+            return !Number.isNaN(fecha.getTime()) && fecha < new Date();
+        }
+
+        function claseEstadoActa(estado) {
+            return `minutes-status-${String(estado || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replaceAll(' ', '-')}`;
+        }
+
+        function renderizarActas() {
+            const tbody = document.getElementById('actasTableBody');
+            if (!tbody) return;
+            const buscar = document.getElementById('actaBuscar')?.value.trim().toLowerCase() || '';
+            const estado = document.getElementById('actaFiltroEstado')?.value || '';
+            const tipo = document.getElementById('actaFiltroTipo')?.value || '';
+            const visibles = cacheActas.filter(a => {
+                const texto = `${a.codigo} ${a.asunto} ${a.lugar} ${a.preside}`.toLowerCase();
+                return (!buscar || texto.includes(buscar)) && (!estado || a.estado === estado) && (!tipo || a.tipo === tipo);
+            });
+            const vencidos = cacheActas.reduce((total, a) => total + (a.compromisos || []).filter(compromisoVencido).length, 0);
+            document.getElementById('actaStatTotal').textContent = cacheActas.length;
+            document.getElementById('actaStatBorrador').textContent = cacheActas.filter(a => a.estado === 'Borrador').length;
+            document.getElementById('actaStatSeguimiento').textContent = cacheActas.filter(a => a.estado === 'En seguimiento').length;
+            document.getElementById('actaStatVencidos').textContent = vencidos;
+            tbody.innerHTML = visibles.length ? visibles.map(a => {
+                const compromisos = a.compromisos || [];
+                const completados = compromisos.filter(c => c.estado === 'Completado').length;
+                return `<tr><td><strong>${escapeHtml(a.codigo)}</strong></td><td>${escapeHtml(fechaActa(a.fecha_reunion))}</td><td><span class="minutes-type">${escapeHtml(a.tipo)}</span></td><td><span class="minutes-status ${claseEstadoActa(a.estado)}">${escapeHtml(a.estado)}</span></td><td><strong>${escapeHtml(a.asunto)}</strong><small>${escapeHtml(a.lugar)}</small></td><td><strong>${completados}/${compromisos.length}</strong><small>completados</small></td><td><button type="button" class="btn btn-sm btn-outline btn-ver-acta" data-id="${escapeHtml(a.id)}">Ver detalle</button></td></tr>`;
+            }).join('') : '<tr><td colspan="7" class="minutes-empty">No hay actas que coincidan con los filtros.</td></tr>';
+        }
+
+        function iniciarSuscripcionActas() {
+            if (!currentUser) return;
+            if (unsubscribeActas) unsubscribeActas();
+            unsubscribeActas = onSnapshot(coleccionActas, snapshot => {
+                cacheActas = snapshot.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => (b.fecha_reunion?.seconds || 0) - (a.fecha_reunion?.seconds || 0));
+                renderizarActas();
+            }, error => { console.error('Error al leer actas:', error); showToast('No fue posible cargar las actas.', 'error'); });
+        }
+
+        function abrirFormularioActa() {
+            if (!esGestorActas()) { showToast('Su rol solo permite consultar actas.', 'error'); return; }
+            const form = document.getElementById('formActa');
+            form.reset();
+            const fecha = new Date(); fecha.setMinutes(fecha.getMinutes() - fecha.getTimezoneOffset());
+            document.getElementById('actaFecha').value = fecha.toISOString().slice(0, 16);
+            document.getElementById('actaPreside').value = currentUserProfile?.nombre || '';
+            showModal('modalActa');
+        }
+
+        function abrirDetalleActa(id) {
+            const acta = cacheActas.find(a => a.id === id); if (!acta) return;
+            document.getElementById('actaDetalleCodigo').textContent = acta.codigo;
+            document.getElementById('actaDetalleContenido').innerHTML = `<div class="minutes-detail-grid"><article><span>Estado</span><strong class="minutes-status ${claseEstadoActa(acta.estado)}">${escapeHtml(acta.estado)}</strong></article><article><span>Tipo</span><strong>${escapeHtml(acta.tipo)}</strong></article><article><span>Fecha</span><strong>${escapeHtml(fechaActa(acta.fecha_reunion, true))}</strong></article><article><span>Lugar</span><strong>${escapeHtml(acta.lugar)}</strong></article></div><section class="minutes-detail-section"><span>Asunto</span><h3>${escapeHtml(acta.asunto)}</h3></section><div class="grid-2"><section class="minutes-detail-section"><span>Preside</span><p>${escapeHtml(acta.preside)}</p></section><section class="minutes-detail-section"><span>Asistentes</span><p>${(acta.asistentes || []).map(escapeHtml).join('<br>')}</p></section></div><section class="minutes-detail-section"><span>Agenda y temas tratados</span><p>${escapeHtml(acta.agenda).replaceAll('\n', '<br>')}</p></section><section class="minutes-detail-section"><span>Compromisos</span>${(acta.compromisos || []).map(c => `<div class="minutes-commitment"><div><strong>${escapeHtml(c.descripcion)}</strong><small>${escapeHtml(c.responsable)} · vence ${escapeHtml(fechaActa(c.fecha_limite))}</small></div><span class="minutes-status ${c.estado === 'Completado' ? 'minutes-status-cerrada' : compromisoVencido(c) ? 'minutes-status-overdue' : 'minutes-status-en-seguimiento'}">${compromisoVencido(c) ? 'Vencido' : escapeHtml(c.estado)}</span></div>`).join('')}</section>`;
+            showModal('modalDetalleActa');
+        }
+
+        document.getElementById('formActa').addEventListener('submit', async event => {
+            event.preventDefault();
+            if (!currentUser || !esGestorActas()) return;
+            const fechaReunion = new Date(document.getElementById('actaFecha').value);
+            const fechaLimite = new Date(`${document.getElementById('actaFechaCompromiso').value}T12:00:00`);
+            const asistentes = document.getElementById('actaAsistentes').value.split('\n').map(v => v.trim()).filter(Boolean);
+            if (Number.isNaN(fechaReunion.getTime()) || Number.isNaN(fechaLimite.getTime()) || !asistentes.length) { showToast('Revise la fecha y los asistentes.', 'error'); return; }
+            const btn = document.getElementById('btnSubmitActa'); btn.disabled = true; btn.textContent = 'Guardando…';
+            try {
+                const datos = { codigo: codigoActa(), tipo: document.getElementById('actaTipo').value, fecha_reunion: fechaReunion, lugar: document.getElementById('actaLugar').value.trim(), preside: document.getElementById('actaPreside').value.trim(), asunto: document.getElementById('actaAsunto').value.trim(), asistentes, agenda: document.getElementById('actaAgenda').value.trim(), compromisos: [{ id: `CMP-${Date.now().toString(36).toUpperCase()}`, descripcion: document.getElementById('actaCompromiso').value.trim(), responsable: document.getElementById('actaResponsable').value.trim(), fecha_limite: fechaLimite, estado: 'Pendiente' }], estado: 'Borrador', creado_por: currentUser.uid, fecha_creacion: serverTimestamp(), ultima_actualizacion: serverTimestamp() };
+                await setDoc(doc(coleccionActas), datos); hideModal('modalActa'); showToast(`✅ Acta ${datos.codigo} creada`);
+            } catch (error) { console.error('Error al guardar acta:', error); showToast('No fue posible guardar el acta.', 'error'); }
+            finally { btn.disabled = false; btn.textContent = 'Crear acta'; }
+        });
+
+        ['actaBuscar', 'actaFiltroEstado', 'actaFiltroTipo'].forEach(id => document.getElementById(id).addEventListener(id === 'actaBuscar' ? 'input' : 'change', renderizarActas));
+        document.getElementById('actasTableBody').addEventListener('click', event => { const boton = event.target.closest('.btn-ver-acta'); if (boton) abrirDetalleActa(boton.dataset.id); });
+
+        // ============================================================
+        // 9. INTERFAZ DE USUARIO (NAVEGACIÓN Y MODALES)
         // ============================================================
         // Navegación del Sidebar
         const navItems = document.querySelectorAll('.nav-item');
@@ -2715,6 +2820,8 @@
                     headerTitle.innerHTML = 'Incidentes <span>| Reporte y trazabilidad de eventos de seguridad</span>';
                 } else if (this.dataset.page === 'capacitaciones') {
                     headerTitle.innerHTML = 'Capacitaciones <span>| Formación, cumplimiento y desarrollo de competencias</span>';
+                } else if (this.dataset.page === 'actas') {
+                    headerTitle.innerHTML = 'Actas <span>| Reuniones, acuerdos y seguimiento de compromisos</span>';
                 } else {
                     headerTitle.innerHTML = 'SISA <span>| Sistema Integral de Seguridad y Ambiente</span>';
                 }
@@ -2738,8 +2845,8 @@
         }
 
         // Asignar aperturas de modales
-        document.getElementById('btnNuevaActaDash').addEventListener('click', () => showModal('modalActa'));
-        document.getElementById('btnNuevaActa').addEventListener('click', () => showModal('modalActa'));
+        document.getElementById('btnNuevaActaDash').addEventListener('click', abrirFormularioActa);
+        document.getElementById('btnNuevaActa').addEventListener('click', abrirFormularioActa);
         document.getElementById('btnNuevoRiesgo').addEventListener('click', () => {
             document.getElementById('formRiesgo').reset();
             cargarAreasRiesgo();
@@ -2753,6 +2860,8 @@
         // Asignar cierres de modales
         document.getElementById('btnCloseActa').addEventListener('click', () => hideModal('modalActa'));
         document.getElementById('btnCancelActa').addEventListener('click', () => hideModal('modalActa'));
+        document.getElementById('btnCloseDetalleActa').addEventListener('click', () => hideModal('modalDetalleActa'));
+        document.getElementById('btnCerrarDetalleActa').addEventListener('click', () => hideModal('modalDetalleActa'));
         document.getElementById('btnCloseRiesgo').addEventListener('click', () => hideModal('modalRiesgo'));
         document.getElementById('btnCancelRiesgo').addEventListener('click', () => hideModal('modalRiesgo'));
         document.getElementById('btnCloseUsuario').addEventListener('click', () => hideModal('modalUsuario'));
@@ -2773,14 +2882,6 @@
             overlay.addEventListener('click', function(e) {
                 if (e.target === this) hideModal(this.id);
             });
-        });
-
-        // Formulario Acta (Mockup para futuras implementaciones Firebase)
-        document.getElementById('formActa').addEventListener('submit', (e) => {
-            e.preventDefault();
-            showToast('✅ Acta simulada guardada');
-            hideModal('modalActa');
-            e.target.reset();
         });
 
         // Exportar a window para uso en el script HTML (si es necesario)
