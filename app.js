@@ -153,6 +153,89 @@
             }, 3000);
         }
 
+        let dialogoAplicacionActivo = null;
+
+        function confirmarEnAplicacion({
+            titulo = 'Confirmar acción',
+            mensaje,
+            detalle = '',
+            textoConfirmar = 'Confirmar',
+            textoCancelar = 'Cancelar',
+            variante = 'primary'
+        }) {
+            const overlay = document.getElementById('modalConfirmacionAplicacion');
+            const dialogo = overlay.querySelector('.app-confirm-dialog');
+            const icono = document.getElementById('appConfirmIcon');
+            const tituloElemento = document.getElementById('appConfirmTitle');
+            const mensajeElemento = document.getElementById('appConfirmMessage');
+            const detalleElemento = document.getElementById('appConfirmDetail');
+            const btnConfirmar = document.getElementById('appConfirmAccept');
+            const btnCancelar = document.getElementById('appConfirmCancel');
+            const focoAnterior = document.activeElement;
+
+            if (dialogoAplicacionActivo) dialogoAplicacionActivo(false);
+
+            overlay.classList.remove('app-confirm-danger', 'app-confirm-warning', 'app-confirm-primary');
+            overlay.classList.add(`app-confirm-${variante}`);
+            icono.textContent = variante === 'danger' ? '!' : variante === 'warning' ? 'i' : '?';
+            tituloElemento.textContent = titulo;
+            mensajeElemento.textContent = mensaje;
+            detalleElemento.textContent = detalle;
+            detalleElemento.hidden = !detalle;
+            btnConfirmar.textContent = textoConfirmar;
+            btnCancelar.textContent = textoCancelar;
+
+            return new Promise(resolve => {
+                let resuelto = false;
+
+                const finalizar = resultado => {
+                    if (resuelto) return;
+                    resuelto = true;
+                    overlay.classList.remove('show');
+                    overlay.setAttribute('aria-hidden', 'true');
+                    document.removeEventListener('keydown', manejarTeclado);
+                    btnConfirmar.removeEventListener('click', confirmar);
+                    btnCancelar.removeEventListener('click', cancelar);
+                    overlay.removeEventListener('click', cancelarDesdeFondo);
+                    dialogoAplicacionActivo = null;
+                    focoAnterior?.focus?.();
+                    resolve(resultado);
+                };
+
+                const confirmar = () => finalizar(true);
+                const cancelar = () => finalizar(false);
+                const cancelarDesdeFondo = evento => {
+                    if (evento.target === overlay) cancelar();
+                };
+                const manejarTeclado = evento => {
+                    if (evento.key === 'Escape') cancelar();
+                    if (evento.key === 'Tab') {
+                        const elementos = [btnCancelar, btnConfirmar];
+                        const indice = elementos.indexOf(document.activeElement);
+                        if (evento.shiftKey && indice <= 0) {
+                            evento.preventDefault();
+                            btnConfirmar.focus();
+                        } else if (!evento.shiftKey && indice === elementos.length - 1) {
+                            evento.preventDefault();
+                            btnCancelar.focus();
+                        }
+                    }
+                };
+
+                dialogoAplicacionActivo = finalizar;
+                btnConfirmar.addEventListener('click', confirmar);
+                btnCancelar.addEventListener('click', cancelar);
+                overlay.addEventListener('click', cancelarDesdeFondo);
+                document.addEventListener('keydown', manejarTeclado);
+                overlay.setAttribute('aria-hidden', 'false');
+                overlay.classList.add('show');
+                requestAnimationFrame(() => {
+                    dialogo.setAttribute('tabindex', '-1');
+                    btnCancelar.focus();
+                });
+            });
+        }
+
         function escapeHtml(valor) {
             return String(valor ?? '')
                 .replaceAll('&', '&amp;')
@@ -242,8 +325,15 @@
             }
         });
 
-        document.getElementById('logoutBtn').addEventListener('click', () => {
-            if (confirm('¿Estás seguro de que deseas cerrar sesión?')) {
+        document.getElementById('logoutBtn').addEventListener('click', async () => {
+            const confirmado = await confirmarEnAplicacion({
+                titulo: 'Cerrar sesión',
+                mensaje: '¿Deseas cerrar tu sesión en SISA?',
+                detalle: 'Tendrás que volver a ingresar tus credenciales para acceder al sistema.',
+                textoConfirmar: 'Sí, cerrar sesión',
+                variante: 'warning'
+            });
+            if (confirmado) {
                 signOut(auth); // Cierra sesión en Firebase
             }
         });
@@ -597,7 +687,14 @@
                 document.querySelectorAll('.btn-eliminar-usr').forEach(btn => {
                     btn.addEventListener('click', async (e) => {
                         const id = e.currentTarget.getAttribute('data-id');
-                        if(confirm('¿Eliminar este usuario del sistema?\nNota: Esto solo borra su perfil de Firestore, para revocar acceso real debe borrarse de Firebase Auth.')) {
+                        const confirmado = await confirmarEnAplicacion({
+                            titulo: 'Eliminar perfil de usuario',
+                            mensaje: '¿Deseas eliminar este perfil del sistema?',
+                            detalle: 'Esta acción solo elimina el perfil de Firestore. Para revocar el acceso también debes eliminar la cuenta en Firebase Authentication.',
+                            textoConfirmar: 'Eliminar perfil',
+                            variante: 'danger'
+                        });
+                        if(confirmado) {
                             await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'usuarios', id));
                             showToast('🗑️ Usuario eliminado');
                         }
@@ -733,7 +830,14 @@
                 document.querySelectorAll('.btn-eliminar-area').forEach(btn => {
                     btn.addEventListener('click', async (e) => {
                         const id = e.currentTarget.getAttribute('data-id');
-                        if(confirm('¿Eliminar esta área del sistema?')) {
+                        const confirmado = await confirmarEnAplicacion({
+                            titulo: 'Eliminar área',
+                            mensaje: '¿Deseas eliminar esta área del sistema?',
+                            detalle: 'Verifica primero que no esté vinculada a registros que deban conservarse.',
+                            textoConfirmar: 'Eliminar área',
+                            variante: 'danger'
+                        });
+                        if(confirmado) {
                             await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'areas', id));
                             showToast('🗑️ Área eliminada');
                         }
@@ -1374,7 +1478,13 @@
             document.querySelectorAll('.btn-restaurar-trabajador').forEach(btn => {
                 btn.addEventListener('click', async (e) => {
                     const id = e.currentTarget.dataset.id;
-                    if(confirm('¿Desea restaurar este expediente al directorio activo?')) {
+                    const confirmado = await confirmarEnAplicacion({
+                        titulo: 'Restaurar expediente',
+                        mensaje: '¿Deseas devolver este expediente al directorio activo?',
+                        detalle: 'El trabajador volverá a mostrarse entre los expedientes activos.',
+                        textoConfirmar: 'Restaurar expediente'
+                    });
+                    if(confirmado) {
                         await restaurarTrabajador(id);
                     }
                 });

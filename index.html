@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>SISA - Sistema Integral de Seguridad y Ambiente</title>
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
-    <link rel="stylesheet" href="styles.css?v=20260821.6" />
+    <link rel="stylesheet" href="styles.css?v=20260821.7" />
 </head>
 <body>
 
@@ -1019,9 +1019,26 @@
         </div>
     </div>
 
+    <!-- Diálogo institucional para confirmaciones de la aplicación -->
+    <div class="app-confirm-overlay" id="modalConfirmacionAplicacion" aria-hidden="true">
+        <section class="app-confirm-dialog" role="alertdialog" aria-modal="true" aria-labelledby="appConfirmTitle" aria-describedby="appConfirmMessage appConfirmDetail">
+            <div class="app-confirm-icon" id="appConfirmIcon" aria-hidden="true">?</div>
+            <div class="app-confirm-copy">
+                <p class="app-confirm-eyebrow">SISA · Confirmación</p>
+                <h2 id="appConfirmTitle">Confirmar acción</h2>
+                <p id="appConfirmMessage"></p>
+                <p class="app-confirm-detail" id="appConfirmDetail" hidden></p>
+            </div>
+            <div class="app-confirm-actions">
+                <button type="button" class="btn btn-outline" id="appConfirmCancel">Cancelar</button>
+                <button type="button" class="btn btn-primary" id="appConfirmAccept">Confirmar</button>
+            </div>
+        </section>
+    </div>
+
     <!-- ========================================================= -->
     <!-- ====== JAVASCRIPT CON FIREBASE ====== -->
     <!-- ========================================================= -->
-    <script type="module" src="app.js?v=20260821.5"></script>
+    <script type="module" src="app.js?v=20260821.6"></script>
 </body>
 </html>
