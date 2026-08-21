@@ -1153,8 +1153,29 @@
             width: 100%;
             max-height: 90vh;
             overflow-y: auto;
+            overflow-x: hidden;
+            clip-path: inset(0 round 16px);
             padding: 28px 32px;
             animation: fadeIn 0.2s ease;
+        }
+
+        .modal::-webkit-scrollbar {
+            width: 10px;
+        }
+
+        .modal::-webkit-scrollbar-track {
+            background: transparent;
+            margin-block: 12px;
+        }
+
+        .modal::-webkit-scrollbar-thumb {
+            background: #94a3b8;
+            border: 2px solid #fff;
+            border-radius: 999px;
+        }
+
+        .modal::-webkit-scrollbar-thumb:hover {
+            background: #64748b;
         }
 
         .modal-header {
