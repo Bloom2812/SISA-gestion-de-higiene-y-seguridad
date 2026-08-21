@@ -75,6 +75,8 @@
             if (btnNuevoIncidente) btnNuevoIncidente.style.display = ['Administrador', 'Responsable H&S'].includes(rol) ? '' : 'none';
             const btnNuevaCapacitacion = document.getElementById('btnNuevaCapacitacion');
             if (btnNuevaCapacitacion) btnNuevaCapacitacion.style.display = ['Administrador', 'Responsable H&S'].includes(rol) ? '' : 'none';
+            const btnNuevoRiesgo = document.getElementById('btnNuevoRiesgo');
+            if (btnNuevoRiesgo) btnNuevoRiesgo.style.display = ['Administrador', 'Responsable H&S'].includes(rol) ? '' : 'none';
         }
 
         function aplicarPermisosSalud() {
@@ -312,65 +314,127 @@
         // ============================================================
         // Regla Obligatoria: Usar ruta /artifacts/{appId}/public/data/{collectionName}
         const coleccionRiesgos = collection(db, 'artifacts', appId, 'public', 'data', 'riesgos');
+        let cacheRiesgos = [];
 
-        // Escuchar datos en tiempo real
+        function metodologiaRiesgo(data) {
+            return data.metodologia || 'Legacy 10x10';
+        }
+
+        function prioridad5x5(nivel) {
+            if (nivel >= 20) return 'Crítica';
+            if (nivel >= 10) return 'Alta';
+            if (nivel >= 5) return 'Moderada';
+            return 'Baja';
+        }
+
+        function prioridadNtp330(nivel) {
+            if (nivel >= 600) return 'Crítica';
+            if (nivel >= 150) return 'Alta';
+            if (nivel >= 40) return 'Moderada';
+            return 'Baja';
+        }
+
+        function resumenRiesgo(data) {
+            const metodo = metodologiaRiesgo(data);
+            if (metodo === 'NTP 330') {
+                const nivel = Number(data.nivel_riesgo ?? (Number(data.nivel_deficiencia) * Number(data.nivel_exposicion) * Number(data.nivel_consecuencia)));
+                return { metodo, nivel, prioridad: data.prioridad || prioridadNtp330(nivel), formula: `ND ${data.nivel_deficiencia} × NE ${data.nivel_exposicion} × NC ${data.nivel_consecuencia}` };
+            }
+            const nivel = Number(data.nivel_riesgo ?? (Number(data.probabilidad) * Number(data.severidad)));
+            if (metodo === 'Legacy 10x10') {
+                const prioridad = nivel > 50 ? 'Crítica' : nivel > 25 ? 'Alta' : nivel > 10 ? 'Moderada' : 'Baja';
+                return { metodo, nivel, prioridad, formula: `Escala histórica P ${data.probabilidad} × S ${data.severidad}` };
+            }
+            return { metodo, nivel, prioridad: data.prioridad || prioridad5x5(nivel), formula: `P ${data.probabilidad} × S ${data.severidad}` };
+        }
+
+        function codigoRiesgo() {
+            const stamp = Date.now().toString(36).toUpperCase().slice(-6);
+            return `RSK-${new Date().getFullYear()}-${stamp}`;
+        }
+
+        function fechaRiesgoVencida(data) {
+            if (!data.fecha_compromiso || ['Controlado', 'Archivado'].includes(data.estado)) return false;
+            const fecha = data.fecha_compromiso.toDate ? data.fecha_compromiso.toDate() : new Date(data.fecha_compromiso);
+            return Number.isFinite(fecha.getTime()) && fecha < new Date();
+        }
+
+        function renderRiesgos() {
+            const tbody = document.getElementById('riesgosTableBody');
+            const texto = document.getElementById('riskSearch').value.trim().toLocaleLowerCase('es');
+            const metodo = document.getElementById('riskFilterMethod').value;
+            const prioridad = document.getElementById('riskFilterPriority').value;
+            const estado = document.getElementById('riskFilterState').value;
+            const visibles = cacheRiesgos.filter(r => {
+                const resumen = resumenRiesgo(r);
+                const bolsa = [r.codigo, r.area_nombre, r.area, r.actividad, r.peligro, r.consecuencia, r.responsable].join(' ').toLocaleLowerCase('es');
+                return (!texto || bolsa.includes(texto)) && (!metodo || resumen.metodo === metodo) && (!prioridad || resumen.prioridad === prioridad) && (!estado || (r.estado || 'Identificado') === estado);
+            });
+            tbody.innerHTML = visibles.length ? visibles.map(r => {
+                const resumen = resumenRiesgo(r);
+                const clase = `risk-priority-${resumen.prioridad.toLocaleLowerCase('es').replace('í', 'i')}`;
+                return `<tr>
+                    <td><span class="risk-cell-primary">${escapeHtml(r.codigo || `LEG-${r.id.slice(0, 6).toUpperCase()}`)}</span><span class="risk-method-label">${escapeHtml(resumen.metodo.replace('5x5', '5×5').replace('10x10', '10×10'))}</span></td>
+                    <td><span class="risk-cell-primary">${escapeHtml(r.area_nombre || r.area || 'Área no registrada')}</span><span class="risk-cell-secondary">${escapeHtml(r.actividad || r.paso_tarea || 'Registro histórico')}</span></td>
+                    <td><span class="risk-cell-primary">${escapeHtml(r.peligro || '-')}</span><span class="risk-cell-secondary">${escapeHtml(r.consecuencia || 'Consecuencia no registrada')}</span></td>
+                    <td><span class="risk-priority ${clase}">${escapeHtml(resumen.prioridad)} · ${resumen.nivel}</span><span class="risk-cell-secondary">${escapeHtml(resumen.formula)}</span></td>
+                    <td><span class="risk-cell-primary">${escapeHtml(r.estado || 'Identificado')}</span><span class="risk-cell-secondary">${escapeHtml(r.responsable || 'Sin responsable')}</span></td>
+                </tr>`;
+            }).join('') : '<tr><td colspan="5" class="risk-empty">No hay evaluaciones que coincidan con los filtros.</td></tr>';
+
+            const activas = cacheRiesgos.filter(r => (r.estado || 'Identificado') !== 'Archivado');
+            document.getElementById('riskStatActivos').textContent = activas.length;
+            document.getElementById('riskStatPrioritarios').textContent = activas.filter(r => ['Alta', 'Crítica'].includes(resumenRiesgo(r).prioridad)).length;
+            document.getElementById('riskStatTratamiento').textContent = activas.filter(r => r.estado === 'En tratamiento').length;
+            document.getElementById('riskStatVencidos').textContent = activas.filter(fechaRiesgoVencida).length;
+        }
+
         function iniciarSuscripcionRiesgos() {
             if (!currentUser) return; // Regla obligatoria: Comprobar autenticación
-
             unsubscribeRiesgos = onSnapshot(coleccionRiesgos, (snapshot) => {
-                const tbody = document.getElementById('riesgosTableBody');
-                tbody.innerHTML = ''; // Limpiar tabla
-
-                if (snapshot.empty) {
-                    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">No hay riesgos registrados. ¡Buen trabajo!</td></tr>';
-                    return;
-                }
-
-                snapshot.forEach((docSnap) => {
-                    const data = docSnap.data();
-                    const id = docSnap.id;
-
-                    // Cálculo de Nivel de Riesgo (Probabilidad * Severidad)
-                    const nivel = data.probabilidad * data.severidad;
-                    let badgeClass = 'badge-success';
-                    let badgeText = 'BAJO';
-
-                    if(nivel > 50) { badgeClass = 'badge-danger'; badgeText = 'CRÍTICO'; }
-                    else if(nivel > 25) { badgeClass = 'badge-warning'; badgeText = 'MEDIO'; }
-
-                    const tr = document.createElement('tr');
-                    tr.innerHTML = `
-                        <td><strong>${data.area}</strong></td>
-                        <td>${data.peligro}</td>
-                        <td style="text-align:center;">
-                            <span class="badge ${badgeClass}">${badgeText} (${nivel})</span>
-                        </td>
-                        <td>${data.responsable}</td>
-                        <td>
-                            <button class="btn btn-sm btn-danger btn-eliminar" data-id="${id}">🗑️</button>
-                        </td>
-                    `;
-                    tbody.appendChild(tr);
-                });
-
-                // Asignar eventos de eliminar
-                document.querySelectorAll('.btn-eliminar').forEach(btn => {
-                    btn.addEventListener('click', async (e) => {
-                        const id = e.target.getAttribute('data-id');
-                        if(confirm('¿Eliminar este riesgo de la base de datos?')) {
-                            await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'riesgos', id));
-                            showToast('🗑️ Riesgo eliminado');
-                        }
-                    });
-                });
-
+                cacheRiesgos = snapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() }));
+                renderRiesgos();
             }, (error) => {
                 console.error("Error de Snapshot:", error);
                 showToast("Error al leer datos en tiempo real", "error");
             });
         }
 
-        // Guardar nuevo Riesgo en Firebase
+        function actualizarMetodoRiesgo() {
+            const metodo = document.getElementById('r_metodologia').value;
+            const ntp = metodo === 'NTP 330';
+            const jsa = metodo === 'JSA 5x5';
+            document.getElementById('riskPanel5x5').hidden = ntp;
+            document.getElementById('riskPanelNtp').hidden = !ntp;
+            document.querySelector('.risk-jsa-field').hidden = !jsa;
+            document.getElementById('r_paso_tarea').required = jsa;
+            document.getElementById('r_metodologia_ayuda').textContent = ntp ? 'Método simplificado INSST: deficiencia × exposición × consecuencia.' : jsa ? 'Descompone el trabajo por pasos y valora cada peligro con la matriz 5×5.' : 'Valoración general mediante probabilidad × severidad, ambas de 1 a 5.';
+            actualizarResultadoRiesgo();
+        }
+
+        function actualizarResultadoRiesgo() {
+            const metodo = document.getElementById('r_metodologia').value;
+            let nivel, prioridad, formula;
+            if (metodo === 'NTP 330') {
+                const nd = Number(document.getElementById('r_deficiencia').value), ne = Number(document.getElementById('r_exposicion').value), nc = Number(document.getElementById('r_consecuencia_ntp').value);
+                nivel = nd * ne * nc; prioridad = prioridadNtp330(nivel); formula = `ND ${nd} × NE ${ne} × NC ${nc}`;
+            } else {
+                const p = Number(document.getElementById('r_probabilidad').value), s = Number(document.getElementById('r_severidad').value);
+                nivel = p * s; prioridad = prioridad5x5(nivel); formula = `P ${p} × S ${s}`;
+            }
+            document.getElementById('riskLiveResult').textContent = `${prioridad} · ${nivel}`;
+            document.getElementById('riskLiveFormula').textContent = formula;
+            return { nivel, prioridad };
+        }
+
+        function cargarAreasRiesgo() {
+            const select = document.getElementById('r_area');
+            const actual = select.value;
+            const areas = Object.values(cacheAreas).sort((a, b) => String(a.nombre).localeCompare(String(b.nombre), 'es'));
+            select.innerHTML = '<option value="">Seleccione un área…</option>' + areas.map(a => `<option value="${escapeHtml(a.id)}">${escapeHtml(a.nombre)}</option>`).join('');
+            if (cacheAreas[actual]) select.value = actual;
+        }
+
         document.getElementById('formRiesgo').addEventListener('submit', async (e) => {
             e.preventDefault();
             if (!currentUser) return;
@@ -379,18 +443,32 @@
             btn.disabled = true;
             btn.textContent = '⏳ Guardando...';
 
+            const metodo = document.getElementById('r_metodologia').value;
+            const areaId = document.getElementById('r_area').value;
+            const resultado = actualizarResultadoRiesgo();
             const nuevoRiesgo = {
-                area: document.getElementById('r_area').value,
-                peligro: document.getElementById('r_peligro').value,
-                probabilidad: parseInt(document.getElementById('r_probabilidad').value),
-                severidad: parseInt(document.getElementById('r_severidad').value),
-                responsable: document.getElementById('r_responsable').value,
-                fechaCreacion: new Date().toISOString()
+                codigo: codigoRiesgo(), metodologia: metodo, area_id: areaId, area_nombre: cacheAreas[areaId]?.nombre || '',
+                actividad: document.getElementById('r_actividad').value.trim(), lugar: document.getElementById('r_lugar').value.trim(),
+                peligro: document.getElementById('r_peligro').value.trim(), consecuencia: document.getElementById('r_consecuencia').value.trim(),
+                controles_existentes: document.getElementById('r_controles').value.trim() || 'Ninguno', responsable: document.getElementById('r_responsable').value.trim(),
+                estado: document.getElementById('r_estado').value, nivel_riesgo: resultado.nivel, prioridad: resultado.prioridad,
+                creado_por: currentUser.uid, fecha_creacion: serverTimestamp(), ultima_actualizacion: serverTimestamp()
             };
+            const compromiso = document.getElementById('r_fecha_compromiso').value;
+            if (compromiso) nuevoRiesgo.fecha_compromiso = new Date(`${compromiso}T12:00:00`);
+            if (metodo === 'NTP 330') {
+                nuevoRiesgo.nivel_deficiencia = Number(document.getElementById('r_deficiencia').value);
+                nuevoRiesgo.nivel_exposicion = Number(document.getElementById('r_exposicion').value);
+                nuevoRiesgo.nivel_consecuencia = Number(document.getElementById('r_consecuencia_ntp').value);
+            } else {
+                nuevoRiesgo.probabilidad = Number(document.getElementById('r_probabilidad').value);
+                nuevoRiesgo.severidad = Number(document.getElementById('r_severidad').value);
+                if (metodo === 'JSA 5x5') nuevoRiesgo.paso_tarea = document.getElementById('r_paso_tarea').value.trim();
+            }
 
             try {
                 await addDoc(coleccionRiesgos, nuevoRiesgo);
-                showToast('✅ Riesgo guardado en Firebase exitosamente');
+                showToast('✅ Evaluación de riesgo registrada');
                 hideModal('modalRiesgo');
                 e.target.reset();
             } catch (error) {
@@ -398,9 +476,14 @@
                 showToast('Error al guardar en base de datos', 'error');
             } finally {
                 btn.disabled = false;
-                btn.textContent = '✅ Guardar en Firebase';
+                btn.textContent = 'Guardar evaluación';
             }
         });
+
+        ['riskSearch', 'riskFilterMethod', 'riskFilterPriority', 'riskFilterState'].forEach(id => document.getElementById(id).addEventListener(id === 'riskSearch' ? 'input' : 'change', renderRiesgos));
+        document.getElementById('r_metodologia').addEventListener('change', actualizarMetodoRiesgo);
+        ['r_probabilidad', 'r_severidad', 'r_deficiencia', 'r_exposicion', 'r_consecuencia_ntp'].forEach(id => document.getElementById(id).addEventListener('change', actualizarResultadoRiesgo));
+        actualizarMetodoRiesgo();
 
         // ============================================================
         // 4. MÓDULO DE USUARIOS Y ÁREAS (CREACIÓN, EDICIÓN Y LISTADO)
@@ -566,6 +649,7 @@
                 if (snapshot.empty) {
                     tbody.innerHTML = '<tr><td colspan="2" style="text-align:center;">No hay áreas registradas.</td></tr>';
                     actualizarOpcionesIncidentes();
+                    cargarAreasRiesgo();
                     return;
                 }
 
@@ -596,6 +680,7 @@
                     });
                 });
                 actualizarOpcionesIncidentes();
+                cargarAreasRiesgo();
 
                 document.querySelectorAll('.btn-eliminar-area').forEach(btn => {
                     btn.addEventListener('click', async (e) => {
@@ -2655,7 +2740,12 @@
         // Asignar aperturas de modales
         document.getElementById('btnNuevaActaDash').addEventListener('click', () => showModal('modalActa'));
         document.getElementById('btnNuevaActa').addEventListener('click', () => showModal('modalActa'));
-        document.getElementById('btnNuevoRiesgo').addEventListener('click', () => showModal('modalRiesgo'));
+        document.getElementById('btnNuevoRiesgo').addEventListener('click', () => {
+            document.getElementById('formRiesgo').reset();
+            cargarAreasRiesgo();
+            actualizarMetodoRiesgo();
+            showModal('modalRiesgo');
+        });
         document.getElementById('btnNuevoIncidente').addEventListener('click', abrirFormularioIncidente);
         document.getElementById('btnIniciarInvestigacion').addEventListener('click', event => abrirInvestigacionIncidente(event.currentTarget.dataset.id));
         document.getElementById('btnNuevaCapacitacion').addEventListener('click', abrirFormularioCapacitacion);
