@@ -278,6 +278,28 @@ function investigacionValida(uid) {
   };
 }
 
+function investigacionActualValida(uid, metodologia = '5 Porqués') {
+  const usaSeisCampos = metodologia !== '5 Porqués';
+  return {
+    metodologia,
+    hechos_confirmados: 'Se confirmó una condición ficticia durante una prueba controlada.',
+    causa_inmediata: 'Control preventivo insuficiente durante la prueba.',
+    analisis_metodo: {
+      respuesta_1: 'Respuesta verificable número uno.',
+      respuesta_2: 'Respuesta verificable número dos.',
+      respuesta_3: 'Respuesta verificable número tres.',
+      respuesta_4: 'Respuesta verificable número cuatro.',
+      respuesta_5: 'Respuesta verificable número cinco.',
+      respuesta_6: usaSeisCampos ? 'Respuesta verificable número seis.' : ''
+    },
+    causa_raiz: 'Control sistémico insuficientemente definido.',
+    factores_contribuyentes: 'Condiciones adicionales documentadas para la prueba.',
+    investigador_id: uid,
+    fecha_inicio: serverTimestamp(),
+    ultima_actualizacion: serverTimestamp()
+  };
+}
+
 test('iniciar investigación exige cambio de estado, documento causal y bitácora atómicos', async () => {
   const db = dbDe('hs');
   const incidenteRef = doc(db, ruta('incidentes', 'incidente-semilla'));
@@ -310,6 +332,43 @@ test('investigación causal rechaza roles no autorizados, campos incompletos y e
     });
   });
   await assertFails(deleteDoc(doc(dbDe('hs'), rutaInvestigacion)));
+});
+
+test('acepta los tres métodos vigentes y conserva compatibilidad con 5 Porqués legacy', async () => {
+  for (const [indice, metodologia] of ['5 Porqués', 'Ishikawa 6M', 'Análisis de barreras'].entries()) {
+    const id = `incidente-metodo-${indice}`;
+    const rutaIncidente = ruta('incidentes', id);
+    await env.withSecurityRulesDisabled(async context => {
+      await setDoc(doc(context.firestore(), rutaIncidente), incidenteValido('hs'));
+    });
+    const db = dbDe('hs');
+    const incidenteRef = doc(db, rutaIncidente);
+    const batch = writeBatch(db);
+    batch.update(incidenteRef, { estado: 'En investigación', ultima_actualizacion: serverTimestamp() });
+    batch.set(doc(db, `${rutaIncidente}/investigacion/principal`), investigacionActualValida('hs', metodologia));
+    batch.set(doc(db, `${rutaIncidente}/historial/inicio-${indice}`), {
+      tipo_evento: 'INICIO_INVESTIGACION',
+      descripcion: `Investigación causal iniciada con metodología ${metodologia}.`,
+      usuario_id: 'hs',
+      fecha: serverTimestamp()
+    });
+    await assertSucceeds(batch.commit());
+  }
+});
+
+test('rechaza métodos no autorizados y análisis 6M incompletos', async () => {
+  const rutaInvestigacion = `${ruta('incidentes', 'incidente-semilla')}/investigacion/principal`;
+  await assertFails(setDoc(doc(dbDe('hs'), rutaInvestigacion), {
+    ...investigacionActualValida('hs'),
+    metodologia: 'Método libre'
+  }));
+  await assertFails(setDoc(doc(dbDe('hs'), rutaInvestigacion), {
+    ...investigacionActualValida('hs', 'Ishikawa 6M'),
+    analisis_metodo: {
+      ...investigacionActualValida('hs', 'Ishikawa 6M').analisis_metodo,
+      respuesta_6: ''
+    }
+  }));
 });
 
 test('el flujo impide saltos de estado y bloquea expedientes cerrados', async () => {

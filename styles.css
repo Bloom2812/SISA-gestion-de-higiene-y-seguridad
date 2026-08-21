@@ -54,6 +54,10 @@
         .incident-investigation-modal { max-height:92vh; overflow-y:auto; }
         .incident-method-banner { display:flex; flex-direction:column; gap:4px; background:#eff6ff; border:1px solid #bfdbfe; border-radius:12px; color:#1e40af; padding:14px 16px; margin-bottom:18px; }
         .incident-method-banner span { color:#475569; font-size:13px; }
+        .incident-method-selector { padding:14px; border:1px solid #dbe3ef; border-radius:12px; background:#f8fafc; }
+        .incident-method-selector label { font-weight:800; color:#0f172a; }
+        .incident-method-fields { border-left:3px solid #2563eb; padding-left:18px; margin:4px 0 18px; }
+        .incident-method-fields .form-group:last-child { margin-bottom:0; }
         .incident-whys { border-left:3px solid #2563eb; padding-left:18px; margin:4px 0 18px; }
         .incident-investigation-summary { border-top:1px solid #cbd5e1; margin-top:24px; padding-top:24px; }
         .incident-investigation-title { display:flex; align-items:center; gap:12px; margin-bottom:14px; }
@@ -62,7 +66,7 @@
         .incident-investigation-title small { color:#2563eb; font-size:11px; font-weight:800; letter-spacing:1px; }
         .incident-investigation-title strong { color:#0f172a; margin-top:2px; }
         .incident-five-whys { list-style:none; counter-reset:why; display:grid; gap:8px; margin:12px 0; padding:0; }
-        .incident-five-whys li { counter-increment:why; background:#fff; border:1px solid #e2e8f0; border-left:3px solid #60a5fa; border-radius:10px; padding:12px 14px; }
+        .incident-five-whys li,.incident-five-whys>div { counter-increment:why; background:#fff; border:1px solid #e2e8f0; border-left:3px solid #60a5fa; border-radius:10px; padding:12px 14px; }
         .incident-five-whys span { color:#2563eb; font-size:12px; font-weight:800; }
         .incident-five-whys p { color:#334155; margin:5px 0 0; line-height:1.45; }
         .incident-root-cause { border-color:#f59e0b; background:#fffbeb; }

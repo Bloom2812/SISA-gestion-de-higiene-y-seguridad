@@ -2166,6 +2166,56 @@
             });
         }
 
+        const METODOS_INVESTIGACION = {
+            '5 Porqués': {
+                ayuda: 'Profundice una cadena causal dominante desde el evento hasta la causa sistémica.',
+                campos: [
+                    '1. ¿Por qué ocurrió?',
+                    '2. ¿Por qué existía esa condición?',
+                    '3. ¿Por qué el control no la evitó?',
+                    '4. ¿Por qué el sistema permitió la falla?',
+                    '5. ¿Por qué persiste la causa sistémica?'
+                ]
+            },
+            'Ishikawa 6M': {
+                ayuda: 'Analice causas concurrentes en las seis categorías; registre evidencia y descarte categorías no aplicables con justificación.',
+                campos: ['Personas', 'Métodos', 'Máquinas y equipos', 'Materiales', 'Medición', 'Medio ambiente']
+            },
+            'Análisis de barreras': {
+                ayuda: 'Determine qué controles debían prevenir o mitigar el evento y por qué resultaron insuficientes.',
+                campos: ['Control esperado', 'Barreras existentes', 'Barreras que fallaron', 'Barreras ausentes', 'Causa de la falla de las barreras', 'Evidencia de efectividad o falla']
+            }
+        };
+
+        function configuracionMetodoInvestigacion(metodologia) {
+            return METODOS_INVESTIGACION[metodologia] || METODOS_INVESTIGACION['5 Porqués'];
+        }
+
+        function renderizarCamposMetodoInvestigacion() {
+            const metodologia = document.getElementById('invMetodo').value;
+            const configuracion = configuracionMetodoInvestigacion(metodologia);
+            document.getElementById('invMetodoTitulo').textContent = `Metodología: ${metodologia}`;
+            document.getElementById('invMetodoAyuda').textContent = configuracion.ayuda;
+            document.getElementById('invCamposMetodo').innerHTML = configuracion.campos.map((etiqueta, indice) => `
+                <div class="form-group">
+                    <label for="invMetodoRespuesta${indice + 1}">${escapeHtml(etiqueta)} *</label>
+                    <textarea class="form-control" id="invMetodoRespuesta${indice + 1}" rows="2" minlength="5" maxlength="1000" required></textarea>
+                </div>`).join('');
+        }
+
+        document.getElementById('invMetodo').addEventListener('change', renderizarCamposMetodoInvestigacion);
+
+        function renderizarAnalisisMetodo(inv) {
+            if (inv.analisis_metodo) {
+                const configuracion = configuracionMetodoInvestigacion(inv.metodologia);
+                return `<div class="incident-five-whys">${configuracion.campos.map((etiqueta, indice) => `
+                    <div><span>${escapeHtml(etiqueta)}</span><p>${escapeHtml(inv.analisis_metodo[`respuesta_${indice + 1}`] || 'No registrado')}</p></div>`).join('')}</div>`;
+            }
+            return `<ol class="incident-five-whys">
+                ${[1, 2, 3, 4, 5].map(numero => `<li><span>¿Por qué ${numero}?</span><p>${escapeHtml(inv[`por_que_${numero}`])}</p></li>`).join('')}
+            </ol>`;
+        }
+
         async function abrirDetalleIncidente(id) {
             const i = cacheIncidentes.find(item => item.id === id);
             if (!i) return;
@@ -2180,9 +2230,7 @@
                             <div class="incident-investigation-title"><span>🔎</span><div><small>INVESTIGACIÓN CAUSAL</small><strong>${escapeHtml(inv.metodologia)}</strong></div></div>
                             <div class="incident-detail-block"><span>Hechos confirmados</span><p>${escapeHtml(inv.hechos_confirmados)}</p></div>
                             <div class="incident-detail-block"><span>Causa inmediata</span><p>${escapeHtml(inv.causa_inmediata)}</p></div>
-                            <ol class="incident-five-whys">
-                                ${[1, 2, 3, 4, 5].map(numero => `<li><span>¿Por qué ${numero}?</span><p>${escapeHtml(inv[`por_que_${numero}`])}</p></li>`).join('')}
-                            </ol>
+                            ${renderizarAnalisisMetodo(inv)}
                             <div class="incident-detail-block incident-root-cause"><span>Causa raíz</span><p>${escapeHtml(inv.causa_raiz)}</p></div>
                             <div class="incident-detail-block"><span>Factores contribuyentes</span><p>${escapeHtml(inv.factores_contribuyentes || 'No registrados')}</p></div>
                         </section>`;
@@ -2216,6 +2264,8 @@
                 return;
             }
             document.getElementById('formInvestigacionIncidente').reset();
+            document.getElementById('invMetodo').value = '5 Porqués';
+            renderizarCamposMetodoInvestigacion();
             document.getElementById('investigacionIncidenteId').value = id;
             document.getElementById('investigacionIncidenteCodigo').textContent = `Investigar ${incidente.codigo}`;
             hideModal('modalDetalleIncidente');
@@ -2232,17 +2282,16 @@
                 return;
             }
             const valores = {
+                metodologia: document.getElementById('invMetodo').value,
                 hechos_confirmados: document.getElementById('invHechos').value.trim(),
                 causa_inmediata: document.getElementById('invCausaInmediata').value.trim(),
-                por_que_1: document.getElementById('invPorque1').value.trim(),
-                por_que_2: document.getElementById('invPorque2').value.trim(),
-                por_que_3: document.getElementById('invPorque3').value.trim(),
-                por_que_4: document.getElementById('invPorque4').value.trim(),
-                por_que_5: document.getElementById('invPorque5').value.trim(),
                 causa_raiz: document.getElementById('invCausaRaiz').value.trim(),
                 factores_contribuyentes: document.getElementById('invFactores').value.trim()
             };
-            if (valores.hechos_confirmados.length < 10 || ['causa_inmediata', 'por_que_1', 'por_que_2', 'por_que_3', 'por_que_4', 'por_que_5', 'causa_raiz'].some(campo => valores[campo].length < 5)) {
+            const configuracion = configuracionMetodoInvestigacion(valores.metodologia);
+            const respuestas = configuracion.campos.map((_, indice) => document.getElementById(`invMetodoRespuesta${indice + 1}`).value.trim());
+            valores.analisis_metodo = Object.fromEntries(Array.from({ length: 6 }, (_, indice) => [`respuesta_${indice + 1}`, respuestas[indice] || '']));
+            if (valores.hechos_confirmados.length < 10 || ['causa_inmediata', 'causa_raiz'].some(campo => valores[campo].length < 5) || respuestas.some(respuesta => respuesta.length < 5)) {
                 showToast('Complete el análisis con información verificable en todos los campos obligatorios.', 'error');
                 return;
             }
@@ -2256,7 +2305,6 @@
                 const batch = writeBatch(db);
                 batch.update(incidenteRef, { estado: 'En investigación', ultima_actualizacion: serverTimestamp() });
                 batch.set(investigacionRef, {
-                    metodologia: '5 Porqués',
                     ...valores,
                     investigador_id: currentUser.uid,
                     fecha_inicio: serverTimestamp(),
@@ -2264,7 +2312,7 @@
                 });
                 batch.set(historialRef, {
                     tipo_evento: 'INICIO_INVESTIGACION',
-                    descripcion: 'Investigación causal iniciada con metodología 5 Porqués.',
+                    descripcion: `Investigación causal iniciada con metodología ${valores.metodologia}.`,
                     usuario_id: currentUser.uid,
                     fecha: serverTimestamp()
                 });
