@@ -19,6 +19,9 @@ grep -q "isValidIncident" "$rules_file" || fail "Falta la validación estructura
 grep -q "match /incidentes/{incidenteId}" "$rules_file" || fail "Faltan reglas para incidentes"
 grep -q "match /historial/{eventoId}" "$rules_file" || fail "Falta la bitácora de incidentes"
 grep -q "match /investigacion/{investigacionId}" "$rules_file" || fail "Falta el expediente separado de investigación causal"
+grep -q "'Ishikawa 6M'" "$rules_file" || fail "Falta autorización explícita de Ishikawa 6M"
+grep -q "'Análisis de barreras'" "$rules_file" || fail "Falta autorización explícita del análisis de barreras"
+grep -q "data.analisis_metodo is map" "$rules_file" || fail "Falta validar la estructura específica del método"
 grep -q "isValidIncidentInvestigation" "$rules_file" || fail "Falta la validación de investigación causal"
 grep -q "match /{document=\*\*}" "$rules_file" || fail "Falta cierre por defecto"
 

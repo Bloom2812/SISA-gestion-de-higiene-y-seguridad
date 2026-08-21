@@ -130,7 +130,7 @@ service cloud.firestore {
         && data.fecha is timestamp;
     }
 
-    function isValidIncidentInvestigation(data) {
+    function isValidLegacyFiveWhysInvestigation(data) {
       return data.keys().hasAll([
           'metodologia', 'hechos_confirmados', 'causa_inmediata',
           'por_que_1', 'por_que_2', 'por_que_3', 'por_que_4', 'por_que_5',
@@ -163,6 +163,70 @@ service cloud.firestore {
         && data.investigador_id is string
         && data.fecha_inicio is timestamp
         && data.ultima_actualizacion is timestamp;
+    }
+
+    function isValidCurrentIncidentInvestigation(data) {
+      return data.keys().hasAll([
+          'metodologia', 'hechos_confirmados', 'causa_inmediata',
+          'analisis_metodo', 'causa_raiz', 'factores_contribuyentes',
+          'investigador_id', 'fecha_inicio', 'ultima_actualizacion'
+        ])
+        && data.keys().hasOnly([
+          'metodologia', 'hechos_confirmados', 'causa_inmediata',
+          'analisis_metodo', 'causa_raiz', 'factores_contribuyentes',
+          'investigador_id', 'fecha_inicio', 'ultima_actualizacion'
+        ])
+        && data.metodologia in ['5 Porqués', 'Ishikawa 6M', 'Análisis de barreras']
+        && data.hechos_confirmados is string
+        && data.hechos_confirmados.size() >= 10
+        && data.hechos_confirmados.size() <= 2000
+        && data.causa_inmediata is string
+        && data.causa_inmediata.size() >= 5
+        && data.causa_inmediata.size() <= 1000
+        && data.analisis_metodo is map
+        && data.analisis_metodo.keys().hasAll([
+          'respuesta_1', 'respuesta_2', 'respuesta_3',
+          'respuesta_4', 'respuesta_5', 'respuesta_6'
+        ])
+        && data.analisis_metodo.keys().hasOnly([
+          'respuesta_1', 'respuesta_2', 'respuesta_3',
+          'respuesta_4', 'respuesta_5', 'respuesta_6'
+        ])
+        && data.analisis_metodo.respuesta_1 is string
+        && data.analisis_metodo.respuesta_1.size() >= 5
+        && data.analisis_metodo.respuesta_1.size() <= 1000
+        && data.analisis_metodo.respuesta_2 is string
+        && data.analisis_metodo.respuesta_2.size() >= 5
+        && data.analisis_metodo.respuesta_2.size() <= 1000
+        && data.analisis_metodo.respuesta_3 is string
+        && data.analisis_metodo.respuesta_3.size() >= 5
+        && data.analisis_metodo.respuesta_3.size() <= 1000
+        && data.analisis_metodo.respuesta_4 is string
+        && data.analisis_metodo.respuesta_4.size() >= 5
+        && data.analisis_metodo.respuesta_4.size() <= 1000
+        && data.analisis_metodo.respuesta_5 is string
+        && data.analisis_metodo.respuesta_5.size() >= 5
+        && data.analisis_metodo.respuesta_5.size() <= 1000
+        && data.analisis_metodo.respuesta_6 is string
+        && data.analisis_metodo.respuesta_6.size() <= 1000
+        && (
+          (data.metodologia == '5 Porqués' && data.analisis_metodo.respuesta_6 == '')
+          || (data.metodologia in ['Ishikawa 6M', 'Análisis de barreras']
+            && data.analisis_metodo.respuesta_6.size() >= 5)
+        )
+        && data.causa_raiz is string
+        && data.causa_raiz.size() >= 5
+        && data.causa_raiz.size() <= 1000
+        && data.factores_contribuyentes is string
+        && data.factores_contribuyentes.size() <= 2000
+        && data.investigador_id is string
+        && data.fecha_inicio is timestamp
+        && data.ultima_actualizacion is timestamp;
+    }
+
+    function isValidIncidentInvestigation(data) {
+      return isValidLegacyFiveWhysInvestigation(data)
+        || isValidCurrentIncidentInvestigation(data);
     }
 
     match /artifacts/{appId}/public/data {
