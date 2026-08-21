@@ -93,6 +93,55 @@
             .incident-detail-grid { grid-template-columns:1fr; }
         }
 
+        /* ===== MÓDULO DE CAPACITACIONES ===== */
+        .training-page-header { display:flex; align-items:center; justify-content:space-between; gap:24px; margin-bottom:16px; padding:16px 18px; background:#fff; border:1px solid #e2e8f0; border-radius:16px; box-shadow:0 6px 20px rgba(15,23,42,.04); }
+        .training-page-heading { display:flex; align-items:center; gap:14px; min-width:0; }
+        .training-page-icon { display:grid; place-items:center; flex:0 0 46px; width:46px; height:46px; border-radius:14px; background:#f5f3ff; color:#6d28d9; font-size:22px; }
+        .training-page-header h2 { color:#0f172a; font-size:25px; line-height:1.15; letter-spacing:-.4px; margin:0 0 4px; }
+        .training-page-header p { color:#64748b; font-size:14px; line-height:1.4; margin:0; }
+        .training-eyebrow { color:#6d28d9; font-size:12px; font-weight:800; letter-spacing:1.3px; margin:0; }
+        .training-stats { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:16px; margin-bottom:20px; }
+        .training-stat { background:#fff; border:1px solid #e2e8f0; border-radius:16px; padding:18px 20px; box-shadow:0 6px 20px rgba(15,23,42,.04); }
+        .training-stat span { display:block; color:#64748b; font-size:13px; font-weight:600; margin-bottom:7px; }
+        .training-stat strong { color:#0f172a; font-size:28px; }
+        .training-stat-alert { border-left:4px solid #f59e0b; }
+        .training-directory { padding:0; overflow:hidden; }
+        .training-toolbar { display:grid; grid-template-columns:minmax(280px,1fr) 210px 230px; gap:12px; padding:18px; border-bottom:1px solid #e2e8f0; }
+        .training-search { position:relative; display:block; }
+        .training-search span { position:absolute; left:14px; top:50%; transform:translateY(-50%); z-index:1; }
+        .training-search input { padding-left:43px; }
+        .training-list { min-height:180px; }
+        .training-row { display:grid; grid-template-columns:165px minmax(260px,1fr) 125px 150px; align-items:center; gap:16px; padding:18px 20px; border-bottom:1px solid #eef2f7; transition:background .2s; }
+        .training-row:last-child { border-bottom:0; }
+        .training-row:hover { background:#f8fafc; }
+        .training-row-code span { display:block; color:#6d28d9; font-weight:800; font-size:13px; }
+        .training-row-code small { display:block; color:#64748b; margin-top:5px; }
+        .training-row-main { min-width:0; }
+        .training-row-main strong { color:#0f172a; display:block; margin-bottom:5px; }
+        .training-row-main p { color:#64748b; font-size:13px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; margin:0; }
+        .training-badge { display:inline-flex; align-items:center; justify-content:center; width:max-content; max-width:100%; border-radius:999px; padding:6px 11px; font-size:12px; font-weight:750; line-height:1.15; }
+        .training-badge-programada { background:#dbeafe; color:#1d4ed8; }
+        .training-badge-en-curso { background:#fef3c7; color:#92400e; }
+        .training-badge-completada { background:#dcfce7; color:#166534; }
+        .training-badge-cancelada { background:#fee2e2; color:#b91c1c; }
+        .training-empty { min-height:180px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:7px; color:#64748b; text-align:center; padding:30px; }
+        .training-empty strong { color:#334155; font-size:17px; }
+        .training-form-note { background:#f5f3ff; color:#5b21b6; border-radius:10px; padding:12px 14px; font-size:13px; }
+
+        @media (max-width: 1100px) {
+            .training-stats { grid-template-columns:repeat(2,minmax(0,1fr)); }
+            .training-row { grid-template-columns:150px 1fr 125px; }
+            .training-row .training-badge:first-of-type { display:none; }
+        }
+        @media (max-width: 760px) {
+            .training-page-header { align-items:flex-start; flex-direction:column; }
+            .training-page-header .btn { width:100%; }
+            .training-page-heading { align-items:flex-start; }
+            .training-toolbar { grid-template-columns:1fr; }
+            .training-row { grid-template-columns:1fr; gap:10px; }
+            .training-row-main p { white-space:normal; }
+        }
+
         /* ===== PANTALLA DE LOGIN ===== */
         .login-container {
             position: fixed;

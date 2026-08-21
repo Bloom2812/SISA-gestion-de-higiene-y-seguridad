@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>SISA - Sistema Integral de Seguridad y Ambiente</title>
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
-    <link rel="stylesheet" href="styles.css?v=20260821.2" />
+    <link rel="stylesheet" href="styles.css?v=20260821.3" />
 </head>
 <body>
 
@@ -717,7 +717,32 @@
                         <div class="incident-list" id="incidentesLista" aria-live="polite"><div class="incident-empty">Cargando incidentes…</div></div>
                     </section>
                 </div>
-                <div class="page" id="page-capacitaciones"><h2 class="mb-4">🎓 Capacitaciones</h2><p>Módulo listo para ser desarrollado igual que Riesgos.</p></div>
+                <div class="page" id="page-capacitaciones">
+                    <section class="training-page-header">
+                        <div class="training-page-heading">
+                            <span class="training-page-icon" aria-hidden="true">🎓</span>
+                            <div>
+                                <h2>Gestión de Capacitaciones</h2>
+                                <p>Programación y trazabilidad de formación institucional.</p>
+                            </div>
+                        </div>
+                        <button class="btn btn-primary" id="btnNuevaCapacitacion">➕ Programar capacitación</button>
+                    </section>
+                    <div class="training-stats" aria-label="Resumen de capacitaciones">
+                        <article class="training-stat"><span>Total registradas</span><strong id="capStatTotal">0</strong></article>
+                        <article class="training-stat"><span>Programadas</span><strong id="capStatProgramadas">0</strong></article>
+                        <article class="training-stat"><span>Próximos 30 días</span><strong id="capStatProximas">0</strong></article>
+                        <article class="training-stat training-stat-alert"><span>Programaciones vencidas</span><strong id="capStatVencidas">0</strong></article>
+                    </div>
+                    <section class="card training-directory">
+                        <div class="training-toolbar">
+                            <label class="training-search"><span>🔎</span><input id="capBuscar" class="form-control" type="search" placeholder="Buscar por código, tema, categoría..." aria-label="Buscar capacitaciones"></label>
+                            <select id="capFiltroCampo" class="form-control" aria-label="Categoría del filtro"><option value="estado">Estado</option><option value="categoria">Categoría</option><option value="modalidad">Modalidad</option><option value="alcance">Alcance</option></select>
+                            <select id="capFiltroValor" class="form-control" aria-label="Valor del filtro"></select>
+                        </div>
+                        <div class="training-list" id="capacitacionesLista" aria-live="polite"><div class="training-empty">Cargando capacitaciones…</div></div>
+                    </section>
+                </div>
 
                 <!-- ========================================================= -->
                 <!-- ====== PAGE: CONFIGURACIÓN (USUARIOS) ====== -->
@@ -932,6 +957,28 @@
         </div>
     </div>
 
+    <div class="modal-overlay" id="modalCapacitacion">
+        <div class="modal modal-wide">
+            <div class="modal-header"><div><p class="training-eyebrow">NUEVA PROGRAMACIÓN</p><h2>Programar capacitación</h2></div><button type="button" class="modal-close" id="btnCloseCapacitacion">×</button></div>
+            <form id="formCapacitacion">
+                <div class="grid-2">
+                    <div class="form-group"><label for="capTitulo">Tema o título *</label><input class="form-control" id="capTitulo" minlength="5" maxlength="160" required placeholder="Ej. Buenas Prácticas de Manufactura"></div>
+                    <div class="form-group"><label for="capCategoria">Categoría *</label><input class="form-control" id="capCategoria" list="capCategoriasSugeridas" minlength="2" maxlength="80" required placeholder="Seleccione o escriba una categoría"><datalist id="capCategoriasSugeridas"><option value="BPM"></option><option value="Higiene y Seguridad"></option><option value="Calidad"></option><option value="Producción"></option><option value="Mantenimiento"></option><option value="Medio Ambiente"></option><option value="Recursos Humanos"></option></datalist></div>
+                    <div class="form-group"><label for="capModalidad">Modalidad *</label><select class="form-control" id="capModalidad" required><option value="Presencial">Presencial</option><option value="Virtual">Virtual</option><option value="Mixta">Mixta</option><option value="Práctica en puesto">Práctica en puesto</option></select></div>
+                    <div class="form-group"><label for="capFechaInicio">Fecha y hora de inicio *</label><input class="form-control" id="capFechaInicio" type="datetime-local" required></div>
+                    <div class="form-group"><label for="capDuracion">Duración en minutos *</label><input class="form-control" id="capDuracion" type="number" min="15" max="1440" step="5" value="60" required></div>
+                    <div class="form-group"><label for="capInstructor">Instructor o entidad *</label><input class="form-control" id="capInstructor" minlength="2" maxlength="120" required placeholder="Nombre del instructor o proveedor"></div>
+                    <div class="form-group"><label for="capAlcance">Alcance *</label><select class="form-control" id="capAlcance" required><option value="Toda la organización">Toda la organización</option><option value="Área específica">Área específica</option></select></div>
+                    <div class="form-group" id="capAreaGrupo" style="display:none;"><label for="capArea">Área *</label><select class="form-control" id="capArea"><option value="">Seleccione un área…</option></select></div>
+                    <div class="form-group"><label for="capLugar">Lugar o enlace</label><input class="form-control" id="capLugar" maxlength="200" placeholder="Ej. Sala de capacitación o enlace virtual"></div>
+                </div>
+                <div class="form-group"><label for="capObjetivo">Objetivo de aprendizaje</label><textarea class="form-control" id="capObjetivo" rows="3" maxlength="1000" placeholder="Resultado esperado de la capacitación."></textarea></div>
+                <p class="training-form-note">La capacitación se registrará como <strong>Programada</strong>. La asistencia, evaluación y cierre se habilitarán en las siguientes etapas.</p>
+                <div class="modal-footer"><button type="button" class="btn btn-outline" id="btnCancelCapacitacion">Cancelar</button><button type="submit" class="btn btn-primary" id="btnSubmitCapacitacion">Guardar programación</button></div>
+            </form>
+        </div>
+    </div>
+
     <!-- MODAL: Nueva Área -->
     <div class="modal-overlay" id="modalArea">
         <div class="modal">
@@ -978,6 +1025,6 @@
     <!-- ========================================================= -->
     <!-- ====== JAVASCRIPT CON FIREBASE ====== -->
     <!-- ========================================================= -->
-    <script type="module" src="app.js?v=20260821.1"></script>
+    <script type="module" src="app.js?v=20260821.2"></script>
 </body>
 </html>

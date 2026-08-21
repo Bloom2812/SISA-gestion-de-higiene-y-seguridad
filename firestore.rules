@@ -28,6 +28,58 @@ service cloud.firestore {
       return hasRole(appId, ['Administrador', 'Responsable H&S']);
     }
 
+    function isTrainingManager(appId) {
+      return hasRole(appId, ['Administrador', 'Responsable H&S']);
+    }
+
+    function trainingAreaReferenceIsValid(appId, data) {
+      return (data.alcance == 'Toda la organización'
+          && !data.keys().hasAny(['area_id', 'area_nombre']))
+        || (data.alcance == 'Área específica'
+          && data.keys().hasAll(['area_id', 'area_nombre'])
+          && data.area_id is string
+          && data.area_id.size() > 0
+          && data.area_nombre is string
+          && data.area_nombre.size() > 0
+          && data.area_nombre.size() <= 120
+          && exists(/databases/$(database)/documents/artifacts/$(appId)/public/data/areas/$(data.area_id)));
+    }
+
+    function isValidTrainingTransition(previousState, nextState) {
+      return previousState == nextState
+        || (previousState == 'Programada' && nextState in ['En curso', 'Cancelada'])
+        || (previousState == 'En curso' && nextState in ['Completada', 'Cancelada']);
+    }
+
+    function isValidTraining(appId, data) {
+      return data.keys().hasAll([
+          'codigo', 'titulo', 'categoria', 'modalidad', 'fecha_inicio',
+          'duracion_minutos', 'instructor', 'alcance', 'estado',
+          'creado_por', 'fecha_creacion', 'ultima_actualizacion'
+        ])
+        && data.keys().hasOnly([
+          'codigo', 'titulo', 'categoria', 'modalidad', 'fecha_inicio',
+          'duracion_minutos', 'instructor', 'alcance', 'area_id', 'area_nombre',
+          'lugar', 'objetivo', 'estado', 'creado_por', 'fecha_creacion',
+          'ultima_actualizacion'
+        ])
+        && data.codigo is string && data.codigo.size() >= 8 && data.codigo.size() <= 30
+        && data.titulo is string && data.titulo.size() >= 5 && data.titulo.size() <= 160
+        && data.categoria is string && data.categoria.size() >= 2 && data.categoria.size() <= 80
+        && data.modalidad in ['Presencial', 'Virtual', 'Mixta', 'Práctica en puesto']
+        && data.fecha_inicio is timestamp
+        && data.duracion_minutos is int && data.duracion_minutos >= 15 && data.duracion_minutos <= 1440
+        && data.instructor is string && data.instructor.size() >= 2 && data.instructor.size() <= 120
+        && data.alcance in ['Toda la organización', 'Área específica']
+        && trainingAreaReferenceIsValid(appId, data)
+        && (!data.keys().hasAny(['lugar']) || (data.lugar is string && data.lugar.size() <= 200))
+        && (!data.keys().hasAny(['objetivo']) || (data.objetivo is string && data.objetivo.size() <= 1000))
+        && data.estado in ['Programada', 'En curso', 'Completada', 'Cancelada']
+        && data.creado_por is string
+        && data.fecha_creacion is timestamp
+        && data.ultima_actualizacion is timestamp;
+    }
+
     function incidentAreaExists(appId, areaId) {
       return exists(/databases/$(database)/documents/artifacts/$(appId)/public/data/areas/$(areaId));
     }
@@ -305,8 +357,19 @@ service cloud.firestore {
 
       match /capacitaciones/{capacitacionId} {
         allow read: if hasUserProfile(appId);
-        allow create, update:
-          if hasRole(appId, ['Administrador', 'Responsable H&S']);
+        allow create: if isTrainingManager(appId)
+          && isValidTraining(appId, request.resource.data)
+          && request.resource.data.estado == 'Programada'
+          && request.resource.data.creado_por == request.auth.uid
+          && request.resource.data.fecha_creacion == request.time
+          && request.resource.data.ultima_actualizacion == request.time;
+        allow update: if isTrainingManager(appId)
+          && isValidTraining(appId, request.resource.data)
+          && isValidTrainingTransition(resource.data.estado, request.resource.data.estado)
+          && request.resource.data.codigo == resource.data.codigo
+          && request.resource.data.creado_por == resource.data.creado_por
+          && request.resource.data.fecha_creacion == resource.data.fecha_creacion
+          && request.resource.data.ultima_actualizacion == request.time;
         allow delete: if false;
       }
 

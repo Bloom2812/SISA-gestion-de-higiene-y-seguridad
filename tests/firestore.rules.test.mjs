@@ -72,6 +72,25 @@ function incidenteValido(uid, codigo = 'INC-2026-0002') {
   };
 }
 
+function capacitacionValida(uid, codigo = 'CAP-2026-0001') {
+  return {
+    codigo,
+    titulo: 'Buenas prácticas de manufactura',
+    categoria: 'BPM',
+    modalidad: 'Presencial',
+    fecha_inicio: Timestamp.fromDate(new Date('2026-09-15T14:00:00Z')),
+    duracion_minutos: 120,
+    instructor: 'Especialista QA',
+    alcance: 'Toda la organización',
+    lugar: 'Sala de capacitación',
+    objetivo: 'Fortalecer la aplicación uniforme de las buenas prácticas de manufactura.',
+    estado: 'Programada',
+    creado_por: uid,
+    fecha_creacion: serverTimestamp(),
+    ultima_actualizacion: serverTimestamp()
+  };
+}
+
 test.before(async () => {
   env = await initializeTestEnvironment({
     projectId: PROJECT_ID,
@@ -394,6 +413,59 @@ test('ningún rol puede eliminar un incidente', async () => {
   for (const uid of ['admin', 'hs', 'gerencia', 'supervisor', 'trabajador']) {
     await assertFails(deleteDoc(doc(dbDe(uid), ruta('incidentes', 'incidente-semilla'))));
   }
+});
+
+test('usuarios con perfil pueden consultar capacitaciones, pero una sesión anónima no', async () => {
+  await assertSucceeds(getDoc(doc(dbDe('trabajador'), ruta('capacitaciones', 'capacitacion-semilla'))));
+  const dbAnonima = env.unauthenticatedContext().firestore();
+  await assertFails(getDoc(doc(dbAnonima, ruta('capacitaciones', 'capacitacion-semilla'))));
+});
+
+test('Administrador y Responsable H&S pueden programar capacitaciones de categorías abiertas', async () => {
+  for (const uid of ['admin', 'hs']) {
+    const ref = doc(dbDe(uid), ruta('capacitaciones', `capacitacion-${uid}`));
+    const datos = capacitacionValida(uid, `CAP-2026-${uid.toUpperCase()}`);
+    datos.categoria = uid == 'admin' ? 'Higiene y seguridad' : 'BPM';
+    await assertSucceeds(setDoc(ref, datos));
+  }
+});
+
+test('otros roles no pueden programar ni modificar capacitaciones', async () => {
+  for (const uid of ['medico', 'gerencia', 'supervisor', 'trabajador']) {
+    const ref = doc(dbDe(uid), ruta('capacitaciones', `capacitacion-${uid}`));
+    await assertFails(setDoc(ref, capacitacionValida(uid, `CAP-2026-${uid.toUpperCase()}`)));
+  }
+});
+
+test('el alcance de una capacitación exige una referencia de área coherente', async () => {
+  const db = dbDe('hs');
+  const organizacional = capacitacionValida('hs', 'CAP-2026-ORG');
+  organizacional.area_id = 'mantenimiento';
+  organizacional.area_nombre = 'Mantenimiento';
+  await assertFails(setDoc(doc(db, ruta('capacitaciones', 'alcance-inconsistente')), organizacional));
+
+  const inexistente = capacitacionValida('hs', 'CAP-2026-AREA');
+  inexistente.alcance = 'Área específica';
+  inexistente.area_id = 'area-inexistente';
+  inexistente.area_nombre = 'Área inexistente';
+  await assertFails(setDoc(doc(db, ruta('capacitaciones', 'area-inexistente')), inexistente));
+
+  const valida = capacitacionValida('hs', 'CAP-2026-MANT');
+  valida.alcance = 'Área específica';
+  valida.area_id = 'mantenimiento';
+  valida.area_nombre = 'Mantenimiento';
+  await assertSucceeds(setDoc(doc(db, ruta('capacitaciones', 'area-valida')), valida));
+});
+
+test('el flujo de capacitación protege identidad, transiciones y eliminación', async () => {
+  const ref = doc(dbDe('admin'), ruta('capacitaciones', 'flujo-capacitacion'));
+  await assertSucceeds(setDoc(ref, capacitacionValida('admin', 'CAP-2026-FLUJO')));
+  await assertFails(updateDoc(ref, { estado: 'Completada', ultima_actualizacion: serverTimestamp() }));
+  await assertFails(updateDoc(ref, { codigo: 'CAP-ALTERADA', ultima_actualizacion: serverTimestamp() }));
+  await assertSucceeds(updateDoc(ref, { estado: 'En curso', ultima_actualizacion: serverTimestamp() }));
+  await assertSucceeds(updateDoc(ref, { estado: 'Completada', ultima_actualizacion: serverTimestamp() }));
+  await assertFails(updateDoc(ref, { estado: 'Programada', ultima_actualizacion: serverTimestamp() }));
+  await assertFails(deleteDoc(ref));
 });
 
 test('historial de incidentes es append-only y registra al usuario autenticado', async () => {
